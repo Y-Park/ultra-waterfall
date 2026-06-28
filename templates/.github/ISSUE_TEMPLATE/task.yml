@@ -1,0 +1,157 @@
+name: Ultra-Waterfall Task
+description: Create a tracked task whose body becomes the charter for an autonomous LOOP.
+title: "Task: "
+body:
+  - type: markdown
+    attributes:
+      value: |
+        이 템플릿은 울트라-워터폴 작업 이슈를 만들기 위한 형식입니다.
+        이슈 본문은 인테이크에서 확정되는 charter(방향 명세)와 같은 내용을 담으며,
+        잠금된 charter는 자율 LOOP가 따르는 불변 계약이 됩니다.
+        인간 개입은 인테이크(시작)와 최종 PR 검토(끝) 2회뿐이므로, 방향·제약·수용 기준을 처음에 명확히 적습니다.
+
+  - type: textarea
+    id: background
+    attributes:
+      label: 배경
+      description: 왜 이 작업이 필요한지, 기존 상태의 문제가 무엇인지, 어떤 맥락에서 시작됐는지 적습니다.
+      placeholder: |
+        예:
+        - 현재 구조의 한계
+        - 이전 PR/Issue/문서에서 이어지는 이유
+        - 사용자 요청 또는 외부 기준
+    validations:
+      required: true
+
+  - type: textarea
+    id: goals
+    attributes:
+      label: 목표
+      description: 이 작업이 완료됐을 때 달성돼야 하는 결과를 관찰 가능한 형태의 bullet로 적습니다.
+      placeholder: |
+        - ...
+        - ...
+    validations:
+      required: true
+
+  - type: textarea
+    id: non_goals
+    attributes:
+      label: 비목표
+      description: 이번 task가 의도적으로 달성하지 않는 것. 자율 LOOP가 범위를 넓히지 않도록 경계를 명시합니다.
+      placeholder: |
+        - ...
+    validations:
+      required: false
+
+  - type: textarea
+    id: included_scope
+    attributes:
+      label: 범위 - 포함
+      description: 이번 task에서 반드시 다룰 파일, 기능, 문서, 검증 범위를 적습니다.
+      placeholder: |
+        - ...
+        - ...
+    validations:
+      required: true
+
+  - type: textarea
+    id: excluded_scope
+    attributes:
+      label: 범위 - 제외
+      description: 이번 task에서 명시적으로 다루지 않을 항목을 적습니다.
+      placeholder: |
+        - ...
+        - ...
+    validations:
+      required: true
+
+  - type: textarea
+    id: constraints
+    attributes:
+      label: 제약
+      description: 기술 스택, 호환성, 성능, 보안, 정책 등 LOOP가 반드시 지켜야 할 제약과 비가역·파괴적 작업 금지 경계를 적습니다.
+      placeholder: |
+        - ...
+    validations:
+      required: false
+
+  - type: textarea
+    id: assumptions
+    attributes:
+      label: 가정
+      description: 인간 확인 없이 합리적 기본값으로 진행한 추정을 근거와 함께 적습니다. 가정이 틀리면 자율 LOOP는 에스컬레이션합니다.
+      placeholder: |
+        - 가정: 근거
+    validations:
+      required: false
+
+  - type: textarea
+    id: risks
+    attributes:
+      label: 리스크
+      description: 영향이 큰 리스크와 대응을 적습니다.
+      placeholder: |
+        - 리스크: 대응
+    validations:
+      required: false
+
+  - type: textarea
+    id: acceptance_criteria
+    attributes:
+      label: 수용 기준
+      description: 자율 LOOP의 종료 조건입니다. 인간 판단 없이 OK/MISS로 판정 가능한 관찰·테스트 가능한 기준을 적습니다.
+      placeholder: |
+        - ...
+        - ...
+    validations:
+      required: true
+
+  - type: textarea
+    id: validation
+    attributes:
+      label: 검증 기준
+      description: 각 수용 기준을 OK/MISS로 판정할 실행 테스트, grep, 빌드, 관찰 절차를 적습니다.
+      placeholder: |
+        - `git diff --check`
+        - ...
+    validations:
+      required: true
+
+  - type: textarea
+    id: references
+    attributes:
+      label: 참고
+      description: 관련 Issue, PR, 문서, 공식 가이드, 외부 자료를 적습니다.
+      placeholder: |
+        - #...
+        - https://...
+    validations:
+      required: false
+
+  - type: textarea
+    id: metadata
+    attributes:
+      label: 마일스톤과 label 후보
+      description: milestone, label 후보와 선택 이유를 적습니다. 실제 선택은 task-register의 live 조회 결과를 기준으로 확정합니다.
+      placeholder: |
+        - milestone 후보:
+        - label 후보:
+        - 선택 이유:
+    validations:
+      required: false
+
+  - type: checkboxes
+    id: confirmations
+    attributes:
+      label: 확인
+      description: 중복과 범위 충돌을 줄이기 위한 확인 항목입니다.
+      options:
+        - label: 기존 열린 이슈와 중복되지 않음을 확인했습니다.
+          required: true
+        - label: 이번 task에서 제외할 항목과 비목표를 명시했습니다.
+          required: true
+        - label: 수용 기준이 OK/MISS로 판정 가능한 형태임을 확인했습니다.
+          required: true
+        - label: 자율 LOOP 진입 전 인테이크에서 charter가 확정·잠금됨을 이해했습니다.
+          required: true

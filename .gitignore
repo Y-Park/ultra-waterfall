@@ -1,1 +1,4 @@
 .DS_Store
+
+# 로컬 참조 클론(HW 원본) — 추적 제외
+hyper-waterfall-clone/

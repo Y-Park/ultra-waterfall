@@ -1,12 +1,12 @@
 # 신규 적용 가이드
 
-이 문서는 대상 저장소에 ultra-waterfall 방법론을 처음 적용할 때의 범위와 절차를 정의한다. AI coding tool의 첫 진입점은 `docs/agent-entrypoint.md`다.
+이 문서는 대상 저장소에 ultra-waterfall 방법론을 처음 적용할 때의 범위와 절차를 정의한다. AI coding tool의 첫 진입점은 `src/docs/agent-entrypoint.md`다.
 
-신규 적용은 방법론을 설치하는 1회성 설정 작업이다. `templates/manifest.json`의 strict 범위가 곧 이 작업의 charter 역할을 하며, 그 범위 안에서는 자율로 적용하고, 범위 밖 충돌만 인간에게 보고(에스컬레이션)한다.
+신규 적용은 방법론을 설치하는 1회성 설정 작업이다. `src/templates/manifest.json`의 strict 범위가 곧 이 작업의 charter 역할을 하며, 그 범위 안에서는 자율로 적용하고, 범위 밖 충돌만 인간에게 보고(에스컬레이션)한다.
 
 ## 원칙
 
-- 신규 적용은 `templates/manifest.json`을 먼저 읽고, manifest가 정의한 대상 파일과 심볼릭 링크를 기준으로 수행한다.
+- 신규 적용은 `src/templates/manifest.json`을 먼저 읽고, manifest가 정의한 대상 파일과 심볼릭 링크를 기준으로 수행한다.
 - 문서를 재작성, 요약, 해석하지 않는다. 저장소 특화 placeholder만 치환하고, 중의적인 표현은 유지한다.
 - manifest strict 범위(아래 "범위 제한") 안에서는 작업지시자 추가 승인 없이 적용한다.
 - 기존 target이 이미 존재하거나 사용자 수정이 감지되면 자동으로 덮어쓰지 않는다. 충돌 항목을 모아 보고하고 인간에게 에스컬레이션한다(charter급 사건 취급).
@@ -15,13 +15,13 @@
 ## 신규 적용 절차
 
 1. 대상 저장소 루트 확인
-2. `templates/manifest.json` 확인 (`files[]`의 source→target 매핑, kind, updatePolicy)
+2. `src/templates/manifest.json` 확인 (`files[]`의 source→target 매핑, kind, updatePolicy)
 3. `files[]` 기준으로 적용 후보를 분류한다. 기존 target이 존재하는 항목과 사용자 수정 가능 항목을 충돌 후보로 표시한다.
 4. 충돌 후보가 있으면 먼저 보고하고 인간 판단을 받은 뒤, 충돌 없는 항목부터 적용한다.
 5. manifest 매핑대로 복사한다.
-   - `templates/AGENTS1.md -> AGENTS.md`, `templates/CLAUDE1.md -> CLAUDE.md`
-   - `templates/.github/ISSUE_TEMPLATE/task.yml`, `templates/.github/pull_request_template.md`
-   - `templates/mydocs/_templates`, `templates/mydocs/manual`, `templates/mydocs/skills` 디렉터리
+   - `src/templates/AGENTS1.md -> AGENTS.md`, `src/templates/CLAUDE1.md -> CLAUDE.md`
+   - `src/templates/.github/ISSUE_TEMPLATE/task.yml`, `src/templates/.github/pull_request_template.md`
+   - `src/templates/mydocs/_templates`, `src/templates/mydocs/manual`, `src/templates/mydocs/skills` 디렉터리
    - 각 작업 기억 폴더의 `.gitkeep`과 `README.md`
 6. 심볼릭 링크 생성: `.agents/skills -> ../mydocs/skills`, `.claude/skills -> ../mydocs/skills`
 7. `.ultra-waterfall/version.json` 생성. `frameworkVersion`, `releaseTag`, `installedAt`, `updatedAt`을 기록한다.
@@ -56,7 +56,7 @@
 
 ## 관련 문서
 
-- `docs/agent-entrypoint.md`: 진입점.
-- `templates/manifest.json`: 신규 적용 파일 목록과 update policy.
-- `templates/mydocs/manual/document_structure_guide.md`: 공식 문서 루트와 `mydocs/` 경계.
-- `templates/mydocs/manual/ultra_loop_guide.md`: 적용 후 자율 LOOP 진행 기준.
+- `src/docs/agent-entrypoint.md`: 진입점.
+- `src/templates/manifest.json`: 신규 적용 파일 목록과 update policy.
+- `src/templates/mydocs/manual/document_structure_guide.md`: 공식 문서 루트와 `mydocs/` 경계.
+- `src/templates/mydocs/manual/ultra_loop_guide.md`: 적용 후 자율 LOOP 진행 기준.

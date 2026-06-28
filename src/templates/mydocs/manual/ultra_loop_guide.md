@@ -32,7 +32,7 @@
    - `done` 직전(전 수용기준 OK) → [`task-final-report`](../skills/task-final-report/SKILL.md).
 5. **크래시 화해**: `git status --short`로 미커밋 변경을 확인한다. `lastVerification`/`history`와 대조해, 검증 통과 후 커밋만 빠진 경우면 커밋하고, 미검증 변경이면 현재 Stage 재검증으로 흡수한다. 절대 미검증 변경을 완료로 간주하지 않는다.
 
-`docs/agent-entrypoint.md`의 "절차 선택"도 "진행 중 LOOP 재개"를 이 절차로 안내한다.
+`src/docs/agent-entrypoint.md`의 "절차 선택"도 "진행 중 LOOP 재개"를 이 절차로 안내한다.
 
 ## LOOP 절차
 

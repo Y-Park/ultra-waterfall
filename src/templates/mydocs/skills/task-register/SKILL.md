@@ -20,7 +20,7 @@ description: |
 - 아직 이슈 번호가 없는 작업
 - charter에 배경, 목표, 비목표, 범위, 제약, 가정, 리스크, 수용기준, 검증기준이 정리됨
 - 현재 사용자 자격 증명으로 `gh` CLI 인증 완료
-- 가능하면 GitHub Issue Form `.github/ISSUE_TEMPLATE/task.yml` 또는 프레임워크 원본 `templates/.github/ISSUE_TEMPLATE/task.yml`을 읽을 수 있음
+- 가능하면 GitHub Issue Form `.github/ISSUE_TEMPLATE/task.yml` 또는 프레임워크 원본 `src/templates/.github/ISSUE_TEMPLATE/task.yml`을 읽을 수 있음
 
 ## 절차
 
@@ -70,7 +70,7 @@ description: |
 7. 이슈 초안 작성 (charter 기준)
    - 제목: charter의 작업 단위가 드러나는 한 문장
    - 본문은 charter 내용을 그대로 옮기되, GitHub Issue Form `.github/ISSUE_TEMPLATE/task.yml`을 우선 기준으로 섹션을 구성한다.
-     - 프레임워크 저장소에서 적용 저장소용 원본을 확인해야 하면 `templates/.github/ISSUE_TEMPLATE/task.yml`을 참조한다.
+     - 프레임워크 저장소에서 적용 저장소용 원본을 확인해야 하면 `src/templates/.github/ISSUE_TEMPLATE/task.yml`을 참조한다.
      - `gh issue create`는 Issue Form UI를 실행하지 않으므로, Form의 입력 항목을 아래 Markdown 섹션으로 변환해 본문을 만든다.
    - 본문 섹션(charter 매핑):
      - 배경

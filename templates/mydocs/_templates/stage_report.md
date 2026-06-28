@@ -20,35 +20,49 @@ Stage: {stage}
 
 {문서 작업이면 원문 보존 여부와 재작성 범위를 적는다. 코드 작업이면 해당 없음 또는 API/동작 보존 여부를 적는다.}
 
-## 검증 결과 (자동 검증 게이트)
+## 검증 결과 (독립 검증 게이트)
 
-charter 수용·검증 기준에 대한 OK/MISS 자기판정.
+이 Stage가 담당하는 AC에 대한 OK/MISS 판정. 판정은 구현자와 분리된 **독립 검증**으로 한다(서브에이전트 또는 fresh-eyes 적대 검토). 검증 명령은 charter에서 고정된 것을 그대로 실행하며 약화하지 않는다.
 
-실행 명령:
+실행 명령(charter 검증 기준과 동일):
 
 ```bash
-{검증 명령}
+{charter 고정 검증 명령}
 git diff --check
 ```
 
-결과:
+원문 출력은 로그로 보존: `mydocs/working/task_{milestone}_{issue}_stage{stage}.log` (해시: `{sha256}`)
 
-- {수용 기준별 OK/MISS와 핵심 출력 요약}
+AC별 판정:
+
+| AC | 결과 | 근거(로그 경로#해시 / 핵심 출력) | 독립 검증자 |
+|---|---|---|---|
+| AC{n} | OK/MISS | `...stage{stage}.log#{sha}` | subagent / fresh-eyes |
+
+- 구현자 기대와 독립 검증 결과가 다르면 OK가 아니라 **MISS로 강등**한다.
 
 ## 자기수정 기록
 
-- 자기수정 회차: {0 또는 N회 / charter 한도 N}
-- {MISS가 있었으면 원인과 수정 내용. 없으면 `없음`.}
+- 이번 Stage 자기수정: {회차} / N(charter 한도 {maxPerStage})
+- 누적 자기수정: {selfCorrectionTotal} / {maxSelfCorrectionTotal}
+- 누적 Stage: {totalStages} / {maxStages}
+- {MISS가 있었으면 회차별 원인·수정·재검증 결과. 없으면 `없음`.}
+
+## 드리프트 점검
+
+- 누적 변경이 charter 목표·범위와 여전히 정렬되는가? {정렬/이탈}
+- charter 비목표/제외/제약에 닿았는가? {아니오/예 → 닿았으면 charter급 에스컬레이션}
 
 ## 잔여 위험
 
-- {남은 위험. 없으면 `없음`으로 적는다.}
+- {남은 위험. 없으면 `없음`.}
 
 ## 다음 단계 영향
 
-- {다음 Stage에서 이어받아야 할 맥락. 없으면 `없음`으로 적는다.}
+- {다음 Stage에서 이어받아야 할 맥락. 없으면 `없음`.}
 
 ## 자동 진행 판정
 
-- 수용·검증 기준이 모두 OK이면 다음 Stage로 자동 진행한다.
-- MISS가 남아 있으면 같은 Stage에서 자기수정한다(charter 한도 N). N회 실패 또는 charter급 사건이면 에스컬레이션한다.
+- 담당 AC가 모두 OK이고 드리프트가 없으면 다음 Stage로 자동 진행한다.
+- MISS가 남으면 같은 Stage 자기수정(한도 N, 누적 가드 내). N회 실패 / 가드 도달 / charter급 사건이면 에스컬레이션한다.
+- 이 Stage 종료 시 `.ultra-waterfall/task-{issue}.json`을 갱신·커밋한다(`currentStage`/누적 카운터/`lastVerification`/`history` append/`state`/`updatedAt`).

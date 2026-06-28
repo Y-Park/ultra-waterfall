@@ -33,9 +33,9 @@ local/task{N} ── 커밋 · 커밋 · 커밋 ──→ publish/task{N} push
 병렬 task는 각각 독립적인 `local/task{N}` 브랜치로 위 흐름을 반복한다.
 
 - **타스크 브랜치**: `local/task{N}`에서 Stage 단위로 커밋한다(Stage 산출물 + `_stage{N}.md` 묶음).
-- **원격 게시 브랜치**: 자율 LOOP가 종료되면 `publish/task{N}` 이름으로 원격에 push하고 `{BASE_BRANCH}` 대상 PR을 생성한다.
-- **원격 push**: `local/task` 브랜치는 **로컬 유지 (원격 push 금지)**를 원칙으로 한다. 원격에는 `publish/task{N}`와 merge 결과만 유지한다.
-- **`{BASE_BRANCH}` 대상 PR**: 최종 보고와 검증 결과를 PR 본문에 반영한 Open PR로 생성한다. **검토·merge는 인간이 결정한다(인간 접점 2).**
+- **원격 게시 브랜치**: 작업은 `local/task{N}`에 쌓되, 원격에는 `publish/task{N}`로 게시한다. 인테이크 후 인간이 손을 떼므로 **관찰성**을 위해 LOOP 진입(`task-start`) 직후 `publish/task{N}` push + **draft PR**를 만들고, **각 Stage 종료마다 `publish/task{N}`를 push**해 진행을 원격에서 볼 수 있게 한다.
+- **로컬/원격 구분**: `local/task{N}`은 로컬 작업본(직접 원격 push 안 함). 원격 가시성·PR은 `publish/task{N}` 경로로만 한다. 원격에는 `publish/task{N}`와 merge 결과만 유지한다.
+- **`{BASE_BRANCH}` 대상 PR**: LOOP 진입 시 draft로 생성하고, 종료(전 AC OK) 시 최종 보고·검증을 본문에 반영해 ready로 전환한다. **검토·merge는 인간이 결정한다(인간 접점 2).**
 - **merge 전략**: merge commit 유지 또는 `--no-ff`를 기본으로 한다. squash merge는 Stage별 커밋 의미가 사라질 수 있으므로 기본값으로 두지 않는다.
 
 ## PR 유형

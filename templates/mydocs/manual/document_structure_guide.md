@@ -167,7 +167,7 @@ ultra-waterfall의 적용 기준은 `templates/manifest.json`이다. manifest는
 
 - manifest 진실 원천: `templates/manifest.json`
 - 적용 저장소 version 기록 위치: `.ultra-waterfall/version.json`
-- 자율 LOOP 상태 기록 위치: `.ultra-waterfall/loop-state.json`
+- 자율 LOOP 상태 기록 위치: `.ultra-waterfall/task-{issue}.json`
 
 세부 적용 절차는 [`docs/lifecycle/adoption.md`](../../../docs/lifecycle/adoption.md), 진입점은 [`docs/agent-entrypoint.md`](../../../docs/agent-entrypoint.md)를 따른다.
 

@@ -8,7 +8,7 @@
 
 ## 울트라-워터폴 핵심 규칙
 
-이 프로젝트는 **울트라-워터폴** 방법론을 적용한다. 인간은 시작에서 방향만 잡아주고(인테이크), 그 뒤 AI가 자율 LOOP를 돌며 자동 검증이 인간 승인을 대체한다. 인간 개입은 **2회뿐**: 인테이크(시작: charter 확정·잠금)와 최종 PR 검토(끝). LOOP 규범은 [`ultra_loop_guide.md`](mydocs/manual/ultra_loop_guide.md), 자율 실행 규율은 [`agent_code_hyperfall_rule_conflict.md`](mydocs/manual/agent_code_hyperfall_rule_conflict.md)를 따른다.
+이 프로젝트는 **울트라-워터폴** 방법론을 적용한다. 인간은 시작에서 방향만 잡아주고(인테이크), 그 뒤 AI가 자율 LOOP를 돌며 자동 검증이 인간 승인을 대체한다. 인간 개입은 **2회뿐**: 인테이크(시작: charter 확정·잠금)와 최종 PR 검토(끝). LOOP 규범은 [`ultra_loop_guide.md`](mydocs/manual/ultra_loop_guide.md), 자율 실행 규율은 [`agent_autonomy_charter_discipline.md`](mydocs/manual/agent_autonomy_charter_discipline.md)를 따른다.
 
 - 소스 수정 전 charter(방향 명세)가 인테이크에서 확정·잠금(`LOCKED`)되어 있어야 한다. charter 범위 내 변경은 추가 승인 없이 자율 진행한다.
 - 작업은 GitHub Issue 기준으로 추적하고, 이슈 본문은 charter와 일치시킨다.
@@ -49,8 +49,10 @@
 - [`mydocs/manual/ultra_loop_guide.md`](mydocs/manual/ultra_loop_guide.md) — 자율 LOOP 절차, 자동 검증 게이트, 자기수정/에스컬레이션, 종료·전역 가드
 - [`mydocs/manual/task_workflow_guide.md`](mydocs/manual/task_workflow_guide.md) — 인테이크→LOOP→최종 보고→PR 진행 순서, 커밋 메시지 규칙
 - [`mydocs/manual/git_workflow_guide.md`](mydocs/manual/git_workflow_guide.md) — 브랜치 정책, Git 다이어그램, 메인테이너/컨트리뷰터 워크플로우
-- [`mydocs/manual/pr_process_guide.md`](mydocs/manual/pr_process_guide.md) — 외부 기여 PR 검토
-- [`mydocs/manual/agent_code_hyperfall_rule_conflict.md`](mydocs/manual/agent_code_hyperfall_rule_conflict.md) — 자율 실행과 charter 경계·자기검증 규율
+- [`mydocs/manual/pr_process_guide.md`](mydocs/manual/pr_process_guide.md) — PR 처리 entrypoint(내부 task PR + 외부 기여 PR)
+- [`mydocs/manual/internal_pr_guide.md`](mydocs/manual/internal_pr_guide.md) — 내부 task PR 본문 작성(최종 게이트 산출물)
+- [`mydocs/manual/pr_command_guide.md`](mydocs/manual/pr_command_guide.md) — PR 생성 명령·문서 링크 규칙
+- [`mydocs/manual/agent_autonomy_charter_discipline.md`](mydocs/manual/agent_autonomy_charter_discipline.md) — 자율 실행과 charter 경계·자기검증 규율
 - {PROJECT_SPECIFIC_REQUIRED_DOCUMENTS}
 
 ## Agent Skills

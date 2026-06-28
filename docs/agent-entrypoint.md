@@ -19,6 +19,7 @@ ultra-waterfall은 인간이 시작에서 방향만 잡아주고(인테이크) A
 |---|---|
 | 대상 저장소에 ultra-waterfall을 처음 적용 | [`docs/lifecycle/adoption.md`](lifecycle/adoption.md) |
 | 적용 후 실제 작업(자율 LOOP) 진행 | [`templates/mydocs/manual/ultra_loop_guide.md`](../templates/mydocs/manual/ultra_loop_guide.md) |
+| 진행 중 LOOP 재개(다중 세션) | [`ultra_loop_guide.md`](../templates/mydocs/manual/ultra_loop_guide.md) "세션 진입: 부트스트랩/재개" — 새 세션은 인테이크보다 먼저 이 절차로 진행 중 task를 감지·재개한다 |
 
 ## 공통 진행 순서
 

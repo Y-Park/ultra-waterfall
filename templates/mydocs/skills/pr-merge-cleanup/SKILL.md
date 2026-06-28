@@ -52,7 +52,7 @@ description: |
    # 강제 삭제 git branch -D local/task{N} 는 무단 사용 금지
    ```
 7. 오늘할일 최종 정리: `mydocs/orders/{yyyymmdd}.md`의 #{N} 행이 `완료` + 시각 기록되어 있는지 재확인
-8. LOOP 상태 종결: `.ultra-waterfall/loop-state.json`의 해당 task 항목을 `done`/정리 완료로 갱신하고 정리 시각을 기록
+8. LOOP 상태 종결: `.ultra-waterfall/task-{N}.json`의 해당 task 항목을 `done`/정리 완료로 갱신하고 정리 시각을 기록
 9. 결과 보고: 정리된 항목 목록을 짧게 회신
 
 ## 검증

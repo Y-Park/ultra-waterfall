@@ -39,9 +39,9 @@ raw URL 대신 `[파일명](https://github.com/{REPO_SLUG}/blob/{head_sha}/mydoc
 해당 없는 항목은 삭제합니다.
 -->
 
-- charter: [task_m{milestone}_{issue}_charter.md](https://github.com/{REPO_SLUG}/blob/{head_sha}/mydocs/plans/task_m{milestone}_{issue}_charter.md)
-- 구현 계획서: [task_m{milestone}_{issue}_impl.md](https://github.com/{REPO_SLUG}/blob/{head_sha}/mydocs/plans/task_m{milestone}_{issue}_impl.md)
-- 최종 보고서: [task_m{milestone}_{issue}_report.md](https://github.com/{REPO_SLUG}/blob/{head_sha}/mydocs/report/task_m{milestone}_{issue}_report.md)
+- charter: [task_{milestone}_{issue}_charter.md](https://github.com/{REPO_SLUG}/blob/{head_sha}/mydocs/plans/task_{milestone}_{issue}_charter.md)
+- 구현 계획서: [task_{milestone}_{issue}_impl.md](https://github.com/{REPO_SLUG}/blob/{head_sha}/mydocs/plans/task_{milestone}_{issue}_impl.md)
+- 최종 보고서: [task_{milestone}_{issue}_report.md](https://github.com/{REPO_SLUG}/blob/{head_sha}/mydocs/report/task_{milestone}_{issue}_report.md)
 
 ## 핵심 리뷰 포인트
 

@@ -26,9 +26,10 @@ description: |
 1. **가드 검사(진입 전)**: `.ultra-waterfall/task-{N}.json`에서 `totalStages < guards.maxStages`, `selfCorrectionTotal < guards.maxSelfCorrectionTotal` 확인. 도달 시 진행하지 말고 에스컬레이션(아래 8).
 2. **구현**: 이 Stage가 담당하는 AC(커버리지 표)에 해당하는 작업을 구현한다. `state`를 `implementing`으로 둔다.
 3. **검증 명령 실행(charter 고정)**: 담당 AC의 **charter 검증 명령을 그대로** 실행한다(약화·변경 금지). 원문 출력을 로그로 보존·커밋: `mydocs/working/task_{milestone}_{N}_stage{S}.log`. `state: verifying`.
-4. **독립 검증 판정(OK/MISS)**: 구현 대화이력과 분리된 독립 검증으로 판정한다.
-   - 서브에이전트(Agent/Task)를 새 컨텍스트로 띄워 **charter(AC·검증 기준) + 변경 diff + 검증 로그**만 주고 AC별 OK/MISS 재판정시킨다. 서브에이전트 불가 시 "이 Stage가 charter를 충족하지 *못하는* 이유를 찾아라"는 적대적 fresh-eyes 패스로 대체.
-   - 구현자 기대와 독립 검증이 다르면 **MISS로 강등**.
+4. **독립 검증 판정(OK/MISS — 적대적 반증)**: 구현 대화이력과 분리된 독립 검증으로 판정한다(`ultra_loop_guide.md` "자동 검증 게이트").
+   - 별도 컨텍스트(서브에이전트 또는 fresh-eyes)에 **charter(AC·검증 기준) + 변경 diff**만 주고 "charter를 충족하지 *못하는* 반례를 찾아라"(refute-first). **깨끗한 체크아웃에서 검증자가 직접** 검증 명령을 재실행한다(구현자 로그 불신; 보고≠재실행이면 MISS).
+   - **독립 적대 프로브(필수)**: 동결 명령 재실행에 더해, 검증자가 AC 실패공간을 자기 입력으로 추가 공격(경계·다항목·반례). 동결 명령은 통과하나 프로브가 위반을 찾으면 = teeth 부족 → MISS + charter급 에스컬레이션.
+   - 의심이 남거나 구현자 기대와 다르면 **OK 아닌 MISS로 강등**.
 5. **자기수정(MISS 시)**: 같은 Stage에서 `진단 → 수정 → 재검증(3번 명령 그대로)`. `state: correcting`.
    - 회차마다 `selfCorrectionTotal += 1`, `currentStageCorrections += 1` 기록.
    - **회차 진입 전** `currentStageCorrections < N(maxPerStage)` 및 `selfCorrectionTotal < maxSelfCorrectionTotal` 확인. 도달 시 8(에스컬레이션).

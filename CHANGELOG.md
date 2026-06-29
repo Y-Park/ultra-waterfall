@@ -6,6 +6,7 @@ ultra-waterfall 방법론의 변경 이력. 형식은 [Keep a Changelog](https:/
 
 ### Added
 - **검증 변별력(teeth) 강제** [드라이런 F1 대응]: 각 must-fix AC의 검증은 red-first(미작업 시 MISS)에 더해 **teeth**(AC가 막으려는 위반 변종(mutant) 주입 시 MISS)를 인테이크에서 증명해야 charter를 잠근다. 검증이 mutant를 통과하면(픽스처·단언이 약함) 잡을 때까지 보강. "기계검증 *가능* ≠ 충분"을 게이트로 전환 — HW가 인간 리뷰에 위임하던 "검증 적정성 판정"을 자동 게이트로. (charter/intake/ultra_loop_guide/impl_plan/final-report/README)
+- **독립 검증 적대화** [드라이런 검증-무결성 대응]: 독립 검증을 "재채점"에서 **"적대적 반증(refute-first)"**으로 격상. 검증자는 (a) "충족 못 하는 반례를 찾아라" 태도, (b) **깨끗한 체크아웃에서 직접** 명령 재실행(구현자 로그 불신, 보고≠재실행이면 MISS), (c) **독립 적대 프로브 필수**(동결 명령 외 실패공간을 자기 입력으로 추가 공격 — 동결 명령이 통과해도 프로브가 위반을 찾으면 teeth 부족으로 에스컬레이션). 검증자가 구현자와 같은 사각을 공유하는 "상관된 맹점"을 제거. (ultra_loop_guide/stage-report/final-report/stage_report 템플릿/README)
 
 ### Changed
 - 저장소 구조 재편: 방법론 정의를 `src/`(= `src/templates` + `src/docs`)로 모으고, 루트는 일반 repo 문서(README·LICENSE·CHANGELOG)만 남겼다. manifest source 경로와 문서 참조를 `src/`로 갱신.

@@ -1,0 +1,16 @@
+# ultra-waterfall 강제 정의 보호 — 이 경로 변경은 CODEOWNER(비-에이전트) 인간 review 필수.
+# 에이전트가 자기 목줄(게이트 로직·범위·검증)을 LOOP 중 느슨하게 하지 못하게 하는 핵심.
+# {CODEOWNER}를 실제 메인테이너 핸들/팀으로 치환하고, base branch protection에서
+# "Require review from Code Owners"를 켜야 효력이 생긴다(운영자 책임).
+
+# 강제 machinery
+/.github/workflows/uw-gate.yml      {CODEOWNER}
+/.github/CODEOWNERS                  {CODEOWNER}
+/.ultra-waterfall/bin/               {CODEOWNER}
+/.ultra-waterfall/gate/              {CODEOWNER}
+/.ultra-waterfall/hooks/             {CODEOWNER}
+/.claude/settings.json              {CODEOWNER}
+
+# 계약(charter)·범위·검증 정의
+**/*charter*                         {CODEOWNER}
+/.ultra-waterfall/verify/            {CODEOWNER}

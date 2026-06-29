@@ -1,0 +1,26 @@
+#!/bin/sh
+# ultra-waterfall pre-commit — tamper-evidence + 마찰 (강제 아님)
+# 우회 가능: git commit --no-verify / core.hooksPath 미설정(fresh clone) / rebase·merge·plumbing.
+# 진짜 게이트는 merge 시점 CI(uw-gate.yml → check-gates.sh). 여기서 막혀도 그건 마찰일 뿐.
+set -eu
+ROOT=$(git rev-parse --show-toplevel 2>/dev/null) || exit 0
+GATE="$ROOT/.ultra-waterfall/bin/uw-gate"
+[ -x "$GATE" ] || exit 0
+
+# HALT 활성이면 경고(로컬 마찰)
+"$GATE" halt-check 2>&1 || echo "pre-commit: HALT 상태에서 커밋 중 — 외부 클리어 없이 진행은 charter급 위반." >&2
+
+# 활성 LOOP(charter 잠금 후 구현 단계)일 때만 scope 검사 → intake/register 설정 커밋 오탐 방지
+state=""
+ls "$ROOT"/.ultra-waterfall/task-*.json >/dev/null 2>&1 && \
+  state=$(ls -t "$ROOT"/.ultra-waterfall/task-*.json 2>/dev/null | head -1 | xargs -I{} sed -n 's/.*"state"[[:space:]]*:[[:space:]]*"\([^"]*\)".*/\1/p' {} | head -1)
+case "$state" in
+  implementing|verifying|correcting)
+    if ! "$GATE" charter-scope --staged; then
+      echo "pre-commit: off-charter 변경(위 VIOLATION). --no-verify로 우회하지 말고 charter급 에스컬레이션하라." >&2
+      echo "  (참고: 이 차단은 마찰이다. 우회해도 merge 시점 CI가 base..head를 재검사한다.)" >&2
+      exit 1
+    fi ;;
+  *) : ;;  # 설정/등록 단계: scope 미검사
+esac
+exit 0

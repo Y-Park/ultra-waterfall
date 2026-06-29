@@ -1,0 +1,14 @@
+#!/bin/sh
+# ultra-waterfall pre-push — tamper-evidence + trust-root 환기 (강제 아님)
+# 진짜 강제는 push 후 PR의 merge 시점 CI다. 이 훅은 우회 가능(--no-verify 등).
+set -eu
+ROOT=$(git rev-parse --show-toplevel 2>/dev/null) || exit 0
+GATE="$ROOT/.ultra-waterfall/bin/uw-gate"
+[ -x "$GATE" ] || exit 0
+
+# trust-root(외부 강제 floor)가 실제로 설정됐는지 환기. 미충족이면 LOUD(막지는 않음 — push 자체가 publish/* 관찰성).
+if ! "$GATE" doctor 2>&1; then
+  echo "pre-push: 강제 floor(branch protection + required uw-gate check + least-priv 토큰) 미확인." >&2
+  echo "  → 이 상태로 merge되면 게이트는 honor-system이다. admin이 trust-root를 설정해야 한다(설계 §0,§4)." >&2
+fi
+exit 0

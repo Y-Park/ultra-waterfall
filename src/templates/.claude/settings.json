@@ -1,0 +1,19 @@
+{
+  "//": "ultra-waterfall Claude 전용 마찰 레이어(PreToolUse). 강제 아님 — 비-sandbox 기본에선 에이전트가 이 파일을 자기편집해 무력화할 수 있다(설계 §4). 진짜 강제는 merge 시점 CI. 최대 하드닝은 managed settings + allowManagedHooksOnly + sandbox(운영자 배치).",
+  "hooks": {
+    "PreToolUse": [
+      {
+        "matcher": "Edit|Write",
+        "hooks": [
+          { "type": "command", "command": "sh .ultra-waterfall/hooks/claude-guard.sh edit" }
+        ]
+      },
+      {
+        "matcher": "Bash",
+        "hooks": [
+          { "type": "command", "command": "sh .ultra-waterfall/hooks/claude-guard.sh bash" }
+        ]
+      }
+    ]
+  }
+}

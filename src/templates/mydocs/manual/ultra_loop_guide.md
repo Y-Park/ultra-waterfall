@@ -141,13 +141,27 @@ charter는 LOOP의 유일한 불변 계약이다. "골대 이동"(MISS를 만나
 - `loop-state.plannedStages`(계획 Stage 수)로 PR/에스컬레이션 도착 시점을 인간이 예측할 수 있게 한다.
 - 즉, `local/task`는 로컬, 원격 가시성은 `publish/task{N}`(draft) 경로로 확보한다.
 
+## 강제 레이어 (enforcement: tamper-evidence + CI floor)
+
+규약을 *문서로* 적는 것만으론 shell·파일 접근을 가진 에이전트를 막지 못한다(드라이런 F3). 강제는 두 층으로 정직하게 나눈다.
+
+- **로컬 층 = tamper-evidence + 마찰(강제 아님)**: `.ultra-waterfall/bin/uw-gate` + git hooks(`.ultra-waterfall/hooks/`) + `.claude/settings.json` PreToolUse(Claude 전용) + `.ultra-waterfall/HALT` sentinel. 전부 `--no-verify`·`core.hooksPath`·plumbing·settings 자기편집으로 우회 가능 → "막았다"가 아니라 "위반을 가시화·마찰화"로 읽는다. Codex는 PreToolUse 등가물이 없어 마찰이 더 약하다(비대칭 — 숨기지 않는다).
+- **권위 층 = merge 시점 CI(유일한 진짜 하드 강제)**: `.github/workflows/uw-gate.yml`가 **base ref의** `.ultra-waterfall/gate/check-gates.sh`로 `base..head`를 재검사한다(head가 게이트를 못 바꾸게). branch protection의 required check + `.github/CODEOWNERS`(게이트 정의·charter 보호) + **least-priv 토큰**(에이전트 토큰에서 merge·label remove·base push·workflow write 박탈)이 함께여야 성립. 이 trust-root는 **운영자(admin)·인간 reviewer**가 설치하며, 방법론은 `uw-gate doctor`로 *요구·검증*만 한다(미충족 시 LOUD FAIL — 비강제를 강제로 믿는 상태 차단).
+
+세 게이트(권위 층에서 강제):
+- **G3 charter 적합성**: `base..head` 변경 경로가 charter scope fence(allow/deny) 내인가 + 강제 정의 경로·charter 변경은 CODEOWNER review 필수. off-charter = 약화 말고 charter급 에스컬레이션.
+- **G4 우회불가 에스컬레이션**: 드리프트/위반 시 정지. 재개는 **에이전트 토큰이 못 만드는 외부 신호**(비-에이전트의 `needs-human` 라벨 제거 + 클리어 산출물)로만. `loop-state.escalations[]`에 기록하고 CI가 미클리어 escalation을 발견하면 merge 차단.
+- **G5 아티팩트 도출 + 격리**: done을 자기보고가 아니라, charter가 emit한 `.ultra-waterfall/verify/<ac>.sh`(+`.mutant.sh`)를 **CI가 clean checkout에서 직접 재실행**한 결과로 도출(red-first/teeth 합성). 검증 잡은 read-only 러너로 격리.
+
+정직한 잔여(이 레이어 후에도 honor-system): in-loop 로컬 실행 우회, **silent-no-escalate**(산출물 0이라 어떤 게이트도 못 잡음 — G1 teeth+인간만), on-charter 파일 안 의미론적 드리프트, *약한*(항진은 아니나 mutant 미모델) 검증, 인간 reviewer rubber-stamp·admin 미설정. 전체 설계·위협모델은 [`enforcement-layer-design.md`](../../../docs/enforcement-layer-design.md). 현실 도달점 8→9.
+
 ## loop-state 스키마 (task별)
 
 task마다 `.ultra-waterfall/task-{issue}.json` 하나. 진행 중 task는 `git branch --list 'local/task*'`로 찾고, 상태는 `git show <branch>:.ultra-waterfall/task-{issue}.json`로 읽는다(별도 인덱스 불필요, 병렬 task 상태 충돌 없음). **stage-report는 이 파일을 매 Stage 산출물과 함께 커밋**한다(궤적 보존).
 
 ```json
 {
-  "schemaVersion": "0.2.0",
+  "schemaVersion": "0.3.0",
   "issue": 0,
   "milestone": "m000",
   "charter": "mydocs/plans/task_m000_0_charter.md",
@@ -166,6 +180,10 @@ task마다 `.ultra-waterfall/task-{issue}.json` 하나. 진행 중 task는 `git 
   "history": [ { "stage": 1, "result": "OK", "corrections": 0, "at": "ISO-8601" } ],
   "owner": "sessionId",
   "lease": { "sessionId": "", "acquiredAt": "ISO-8601", "ttlSec": 3600 },
+  "enforcement": { "doctorVerified": false, "branchProtection": false, "requiredCheck": false, "tokenScoped": false, "checkedAt": "ISO-8601" },
+  "scopeFenceHash": "sha256:... (charter scope-fence 블록; charterHash에 포함되는 파생값)",
+  "gateBaselineRef": "origin/{BASE_BRANCH} (CI 권위 게이트의 base ref)",
+  "escalations": [ { "at": "ISO-8601", "reason": "", "clearedBy": "non-agent actor 또는 null", "clearArtifact": "mydocs/feedback/... 또는 null" } ],
   "exit": { "code": "running | completed | escalated", "reason": "", "needsHuman": false },
   "updatedAt": "ISO-8601"
 }
@@ -174,6 +192,7 @@ task마다 `.ultra-waterfall/task-{issue}.json` 하나. 진행 중 task는 `git 
 - `state`=현재 Stage 진행 위치, `exit.code`=LOOP 전체 상태. 매 갱신에 `updatedAt`(ISO-8601) 기록.
 - `totalStages`/`selfCorrectionTotal`=가드용 누적값. `plannedStages`=계획값(예측용, 누적값과 구분).
 - `history[]`=Stage별 append-only 궤적(사후 감사·재구성용).
+- `enforcement`=`uw-gate doctor`가 채우는 trust-root 검증 결과(미충족이면 `doctorVerified:false` — 강제를 'active'로 주장하지 않는다). `escalations[]`=G4 발화·클리어 궤적(CI가 미클리어 항목 발견 시 merge 차단). `gateBaselineRef`=CI 권위 게이트 base ref.
 
 ## 전역 가드 기본값
 

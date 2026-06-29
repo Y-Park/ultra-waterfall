@@ -33,6 +33,17 @@ charter 해시(baseline): `{잠금 시 git hash-object 또는 sha256, loop-state
 ### 제외
 - {명시적으로 다루지 않을 항목}
 
+## 강제 범위 (scope fence)
+
+LOOP가 건드릴 수 있는 파일 경계를 **기계 판독 가능**하게 고정한다. `uw-gate`(로컬 tamper-evidence)와 merge 시점 CI(권위)가 이 블록으로 변경 경로를 검사한다(G3). `allow`는 산출 경계, `deny`는 그 안의 명시 제외. 강제 정의 경로(`.ultra-waterfall/{bin,gate,hooks}/**`, `.github/CODEOWNERS`, `.github/workflows/uw-gate.yml`, `.claude/settings.json`, 이 charter 자신)는 도구가 **항상 보호**한다. `allow`는 좁게(광역 `**` 단독 금지). 이 블록을 포함한 charter 해시가 baseline이며, 느슨화는 charter급 에스컬레이션이다.
+
+<!-- uw:scope-fence:begin -->
+allow {산출 경로 글롭, 예: src/**}
+allow {예: tests/**}
+allow mydocs/**
+deny  {산출 경계 안의 명시 제외, 예: src/legacy/**}
+<!-- uw:scope-fence:end -->
+
 ## 제약
 
 - {기술 스택, 호환성, 성능, 보안, 정책 등 LOOP가 반드시 지켜야 할 제약}
@@ -76,6 +87,7 @@ charter 해시(baseline): `{잠금 시 git hash-object 또는 sha256, loop-state
 - **관찰형 예외**: 불가피하게 관찰이 필요한 AC는 (a) 인테이크 blocking으로 인간이 확정했거나 (b) 스크린샷/로그 첨부를 증거로 의무화한다. 관찰형은 독립 신호가 아니므로 단독으로 OK 근거가 되지 못한다.
 - **red-first**: 각 검증이 미작업 상태에서 실제로 MISS/실패함을 잠금 전에 확인한다(항진적·무의미 검증이 게이트를 무력화하는 것을 방지).
 - **teeth(변별력) 필수**: 기계검증 *가능*만으로는 부족하다. 각 must-fix AC의 검증은 그 AC가 막으려는 **타당한 위반(mutant)을 주입하면 MISS**가 나야 한다. 검증이 mutant를 통과시키면(픽스처·단언이 너무 약함 — 예: 경계 한 케이스만 보는 fixture) mutant를 **잡을 때까지 검증을 보강**한다. **teeth 미입증 AC로는 charter를 잠그지 않는다**(red-first만으로는 "막으려는 그 결함"을 실제로 잡는지 보장하지 못한다).
+- **CI 실행형 emit (G5 강제용)**: 각 must-fix AC의 frozen 검증 명령(과 teeth mutant)을 사람이 읽는 표에만 두지 말고 `.ultra-waterfall/verify/<ac>.sh`(통과=exit0)와 `.ultra-waterfall/verify/<ac>.mutant.sh`(mutant 주입 시 MISS=비-0)로도 emit한다. merge 시점 CI가 이를 clean-room에서 직접 재실행해 done을 자기보고가 아니라 아티팩트에서 도출한다(`enforcement-layer-design.md` §3 G5). 표↔스크립트가 일치해야 한다.
 
 ## 가드
 

@@ -1,0 +1,44 @@
+name: uw-gate
+# ultra-waterfall 권위 게이트 — 유일한 진짜 하드 강제(에이전트 비통제 러너).
+# 강제가 성립하려면(운영자 책임, 방법론은 설치 못 함):
+#   1) 이 워크플로의 'gate' job을 {BASE_BRANCH} branch protection의 required status check로 지정
+#   2) repository ruleset의 require-workflows로 pin(선호) — head가 워크플로 자체를 못 바꾸게
+#   3) 에이전트 실행 토큰에서 merge·label remove·base push·workflow write 박탈(least-priv)
+#   4) CODEOWNERS가 .github/**·.ultra-waterfall/{bin,gate,hooks}/**·*charter*를 보호
+# 위 미설정 시 게이트는 honor-system으로 붕괴한다(uw-gate doctor가 이를 LOUD FAIL시킨다).
+
+on:
+  pull_request:
+    branches: ["{BASE_BRANCH}"]
+
+permissions:
+  contents: read        # least-priv: 검증 코드(head) 실행의 공급망 표면 최소화
+  issues: read          # G4 needs-human 라벨 조회
+  pull-requests: read
+
+jobs:
+  gate:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout (full history)
+        uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
+      - name: Resolve refs
+        id: refs
+        run: |
+          echo "base=origin/${{ github.base_ref }}" >> "$GITHUB_OUTPUT"
+          echo "head=${{ github.event.pull_request.head.sha }}" >> "$GITHUB_OUTPUT"
+      - name: Run authoritative gate from BASE ref (head가 게이트 로직을 못 바꾸게)
+        env:
+          GH_TOKEN: ${{ github.token }}
+        run: |
+          set -eu
+          base="${{ steps.refs.outputs.base }}"
+          head="${{ steps.refs.outputs.head }}"
+          # 게이트 스크립트는 보호된 BASE ref 버전을 사용(head 위조 차단)
+          git show "$base:.ultra-waterfall/gate/check-gates.sh" > /tmp/check-gates.sh 2>/dev/null \
+            || { echo "::error::base ref에 check-gates.sh 없음 — 첫 도입이면 base에 게이트를 먼저 병합하라"; exit 1; }
+          git show "$base:.ultra-waterfall/bin/uw-gate" > /tmp/uw-gate 2>/dev/null || true
+          chmod +x /tmp/check-gates.sh
+          sh /tmp/check-gates.sh "$base" "$head"

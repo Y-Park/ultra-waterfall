@@ -153,7 +153,7 @@ charter는 LOOP의 유일한 불변 계약이다. "골대 이동"(MISS를 만나
 - **G4 우회불가 에스컬레이션**: 드리프트/위반 시 정지. 재개는 **에이전트 토큰이 못 만드는 외부 신호**(비-에이전트의 `needs-human` 라벨 제거 + 클리어 산출물)로만. `loop-state.escalations[]`에 기록하고 CI가 미클리어 escalation을 발견하면 merge 차단.
 - **G5 아티팩트 도출 + 격리**: done을 자기보고가 아니라, charter가 emit한 `.ultra-waterfall/verify/<ac>.sh`(+`.mutant.sh`)를 **CI가 clean checkout에서 직접 재실행**한 결과로 도출(red-first/teeth 합성). 검증 잡은 read-only 러너로 격리.
 
-정직한 잔여(이 레이어 후에도 honor-system): in-loop 로컬 실행 우회, **silent-no-escalate**(산출물 0이라 어떤 게이트도 못 잡음 — G1 teeth+인간만), on-charter 파일 안 의미론적 드리프트, *약한*(항진은 아니나 mutant 미모델) 검증, 인간 reviewer rubber-stamp·admin 미설정. 전체 설계·위협모델은 [`enforcement-layer-design.md`](../../../docs/enforcement-layer-design.md). 현실 도달점 8→9.
+정직한 잔여(이 레이어 후에도 honor-system): in-loop 로컬 실행 우회, **silent-no-escalate**(산출물 0이라 어떤 게이트도 못 잡음 — G1 teeth+인간만), on-charter 파일 안 의미론적 드리프트, *약한*(항진은 아니나 mutant 미모델) 검증, 인간 reviewer rubber-stamp·admin 미설정. 전체 설계·위협모델은 [`enforcement-layer-design.md`](../../../docs/enforcement-layer-design.md), 강제가 성립하려면 admin이 깔아야 하는 trust-root는 [`operator-setup.md`](../../../docs/operator-setup.md)(Phase 0). 현실 도달점 8→9.
 
 ## loop-state 스키마 (task별)
 

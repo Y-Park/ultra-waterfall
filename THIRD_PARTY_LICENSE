@@ -1,6 +1,23 @@
+Third-Party Notices — ultra-waterfall
+=====================================
+
+ultra-waterfall is a derivative methodology built on **hyper-waterfall**
+(https://github.com/postmelee/hyper-waterfall), which is licensed under the MIT
+License. As required by that license, hyper-waterfall's original copyright and
+permission notice is reproduced verbatim below and retained in this distribution.
+
+hyper-waterfall is itself a modularization of the "hyper-waterfall" method by
+edwardkim/rhwp (https://github.com/edwardkim/rhwp).
+
+ultra-waterfall's own additions are covered by the top-level LICENSE
+(MIT, Copyright (c) 2026 Y-Park).
+
+----------------------------------------------------------------------
+hyper-waterfall
+----------------------------------------------------------------------
 MIT License
 
-Copyright (c) 2026 Y-Park
+Copyright (c) 2026 postmelee
 
 Permission is hereby granted, free of charge, to any person obtaining a copy
 of this software and associated documentation files (the "Software"), to deal

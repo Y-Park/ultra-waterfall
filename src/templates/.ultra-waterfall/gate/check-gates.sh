@@ -49,6 +49,7 @@ done
 # --- G5: 기계실행 검증을 clean-room에서 직접 재실행(보고 불신) + red-first/teeth ---
 if [ -d "$UW/verify" ] && ls "$UW"/verify/*.sh >/dev/null 2>&1; then
   for v in "$UW"/verify/*.sh; do
+    case "$v" in *.mutant.sh) continue ;; esac   # mutant은 frozen 검증이 아니라 teeth 짝
     ac=$(basename "$v" .sh)
     if sh "$v"; then note "G5 verify[$ac]: PASS(clean 재실행)"; else bad "G5 verify[$ac]: FAIL(clean 재실행 — 보고와 불일치 또는 미충족)"; fi
     # teeth: 짝이 되는 mutant가 있으면 주입 후 MISS여야 함

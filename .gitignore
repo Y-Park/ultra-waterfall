@@ -2,3 +2,14 @@
 
 # 로컬 참조 클론(HW 원본) — 추적 제외
 hyper-waterfall-clone/
+
+# 이 저장소에 적용한 hyper-waterfall 방법론 인스턴스(로컬 작업 편의용) — 추적 제외.
+# 추적 대상은 src/(ultra 방법론 정의)·README·LICENSE·CHANGELOG·archive/ 뿐.
+# 루트 앵커(/) 필수: src/templates/ 아래의 동일 이름 추적 자산을 마스킹하지 않기 위함.
+/AGENTS.md
+/CLAUDE.md
+/.agents/
+/.claude/
+/.github/
+/.hyper-waterfall/
+/mydocs/

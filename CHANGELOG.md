@@ -4,6 +4,9 @@ ultra-waterfall 방법론의 변경 이력. 형식은 [Keep a Changelog](https:/
 
 ## [Unreleased]
 
+### Added
+- **검증 변별력(teeth) 강제** [드라이런 F1 대응]: 각 must-fix AC의 검증은 red-first(미작업 시 MISS)에 더해 **teeth**(AC가 막으려는 위반 변종(mutant) 주입 시 MISS)를 인테이크에서 증명해야 charter를 잠근다. 검증이 mutant를 통과하면(픽스처·단언이 약함) 잡을 때까지 보강. "기계검증 *가능* ≠ 충분"을 게이트로 전환 — HW가 인간 리뷰에 위임하던 "검증 적정성 판정"을 자동 게이트로. (charter/intake/ultra_loop_guide/impl_plan/final-report/README)
+
 ### Changed
 - 저장소 구조 재편: 방법론 정의를 `src/`(= `src/templates` + `src/docs`)로 모으고, 루트는 일반 repo 문서(README·LICENSE·CHANGELOG)만 남겼다. manifest source 경로와 문서 참조를 `src/`로 갱신.
 - 루트에 적용돼 있던 dogfooding 인스턴스(`AGENTS.md`/`CLAUDE.md`/`mydocs/`/`.claude`/`.agents`/`.github`)를 제거. hyper-waterfall 개발 이력 작업기억은 `archive/`로 보존.

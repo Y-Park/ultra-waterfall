@@ -26,6 +26,7 @@ description: |
 
 1. **독립 통합검증**: charter의 **전 AC**를 일괄 실행·판정한다. 구현자와 분리된 독립 검증(서브에이전트 또는 적대적 fresh-eyes)으로 OK/MISS를 재판정한다. 출력은 로그로 보존.
    - **목표→AC 커버리지 재확인**: charter 모든 목표(G#)가 OK인 AC로 덮이는지 확인(좁은 대리 AC만 충족하고 목표가 빠지지 않게).
+   - **검증 변별력(teeth) 확인**: charter 검증표에 must-fix AC의 teeth 입증(위반 변종 주입 시 MISS)이 채워져 있는지 확인. 비어 있으면 통합검증의 green을 신뢰할 수 없으므로 charter 결함으로 에스컬레이션(PR 금지).
 2. **통합검증 MISS 분기**(MISS가 있으면 PR로 가지 않는다):
    - 부족한 AC를 충족할 Stage를 구현계획서에 추가하고(전역 가드 내) [`task-stage-report`](../task-stage-report/SKILL.md) LOOP로 복귀한다.
    - 가드 초과 또는 구조적으로 충족 불가하면 에스컬레이션(Issue `needs-human` 라벨+사유, `publish/task{N}` push, `loop-state.exit=escalated`).

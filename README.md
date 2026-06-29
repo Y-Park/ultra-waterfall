@@ -212,8 +212,9 @@ ultra-waterfall/
 ├── CHANGELOG.md             변경 이력
 ├── src/                     ← 방법론 정의 (배포 본체)
 │   ├── templates/           적용 대상 repo에 설치되는 파일 (AGENTS/manifest/mydocs/.github)
-│   └── docs/                진입점·적용 절차 (agent-entrypoint, lifecycle/adoption)
-└── archive/                 hyper-waterfall 개발 이력·구축 마일스톤 보존
+│   └── docs/                진입점·적용 절차 (agent-entrypoint, lifecycle/adoption, enforcement, operator-setup)
+├── LICENSE · THIRD_PARTY_LICENSE   ← MIT (+ 파생원 hyper-waterfall 고지)
+└── (로컬 전용, 미공개) archive/    ← hyper-waterfall 개발 이력·구축 마일스톤
 ```
 
 방법론을 대상 저장소에 적용하면 `src/templates/`가 복사되어 아래 "적용 후 대상 저장소 구조"처럼 만들어집니다.

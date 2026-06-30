@@ -23,6 +23,7 @@ ultra-waterfall 방법론의 변경 이력. 형식은 [Keep a Changelog](https:/
 - **check-gates.sh: `*.mutant.sh`를 frozen 검증으로 오실행**하던 버그 — 준수 브랜치도 G5 false-FAIL. 강제 레이어 e2e 드라이런이 발견·수정. e2e로 권위 게이트를 검증: 준수=PASS / off-charter(강제정의 변경)=FAIL(G3) / 미충족(검증 실패)=FAIL(G5).
 
 ### Changed
+- **배포 모델 = GitHub repo 직접 적용**(릴리스 아티팩트 없음): ultra-waterfall은 md 문서 묶음이라 tag/tarball/checksum 핀을 두지 않는다. manifest `release`(github-release/in-development) → `distribution`(github-repo/published)로 교체, `versionState.source`를 `github-repo`+`sourceRef`로, `releaseTag` 제거, checksum 상태 `pending-release`→`unversioned`(무결성·업데이트 충돌은 git diff 검토로). adoption.md version.json 필드와 `overwrite` 업데이트 정책 문구도 정합.
 - 저장소 구조 재편: 방법론 정의를 `src/`(= `src/templates` + `src/docs`)로 모으고, 루트는 일반 repo 문서(README·LICENSE·CHANGELOG)만 남겼다. manifest source 경로와 문서 참조를 `src/`로 갱신.
 - 루트에 적용돼 있던 dogfooding 인스턴스(`AGENTS.md`/`CLAUDE.md`/`mydocs/`/`.claude`/`.agents`/`.github`)를 제거. hyper-waterfall 개발 이력 작업기억은 `archive/`로 보존.
 

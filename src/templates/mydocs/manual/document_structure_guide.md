@@ -10,7 +10,7 @@
 - **문서 템플릿 진실 원천**: 산출물별 출력 형식을 정의하는 `mydocs/_templates/` 폴더. 본 프레임워크 저장소에서는 `src/templates/mydocs/_templates/`가 실제 진실 원천이고, dogfooding용 `mydocs/_templates`는 그 위치를 가리킨다.
 - **GitHub 플랫폼 템플릿**: GitHub Issue나 Pull Request처럼 GitHub UI/CLI가 만드는 플랫폼 산출물의 입력 또는 본문 형식을 정의하는 `.github/ISSUE_TEMPLATE/`와 `.github/pull_request_template.md`.
 - **공식 문서 루트**: 대상 프로젝트가 사용자, 기여자, 외부 통합자, 배포 채널을 위해 공식적으로 채택한 제품 문서 위치. 예: `docs/`, `specs/`, `site/`, `website/`, `adr/`, `book/`, GitHub Wiki. ultra-waterfall은 이 이름을 고정하지 않는다.
-- **배포 manifest**: ultra-waterfall release에 포함되는 파일, 적용 대상 경로, 업데이트 정책, checksum 상태를 정의하는 `src/templates/manifest.json`.
+- **배포 manifest**: ultra-waterfall 배포본에 포함되는 파일, 적용 대상 경로, 업데이트 정책, checksum 상태를 정의하는 `src/templates/manifest.json`.
 - **적용 version 기록**: ultra-waterfall이 적용된 대상 저장소가 현재 사용하는 프레임워크 버전을 기록하는 `.ultra-waterfall/version.json`.
 - **charter(방향 명세)**: 인테이크에서 확정·잠금되어 자율 LOOP가 따르는 불변 계약. `plans/task_{milestone}_{이슈번호}_charter.md`.
 - **실제 산출물 문서**: 특정 날짜, 이슈, PR, 조사 주제에 대해 작성된 문서. 예: `orders/20260506.md`, `plans/task_m010_3_charter.md`.

@@ -78,6 +78,9 @@ cmd_charter_scope() {
   if [ "$mode" = "--range" ]; then paths=$(changed_paths --range "$rng"); else paths=$(changed_paths --staged); fi
   [ -n "$paths" ] || { echo "uw-gate charter-scope: 변경 경로 없음 (OK)"; return 0; }
 
+  # noglob 범위 한정: fence/PROTECTED 글롭이 unquoted for-loop에서 cwd로 pathname-expand되는 것 차단.
+  # (전역 set -f는 resolve_charter의 `ls` 등을 깨므로 매칭 루프에만 적용.)
+  set -f
   viol=0
   for p in $paths; do
     # 1) 보호된 강제정의 경로
@@ -95,6 +98,7 @@ cmd_charter_scope() {
       if [ "$hit" = 0 ]; then echo "VIOLATION(out-of-scope): $p — charter 범위 밖"; viol=1; continue; fi
     fi
   done
+  set +f
   if [ "$viol" = 1 ]; then
     echo "uw-gate charter-scope: off-charter 변경 감지. 약화/우회 말고 charter급 에스컬레이션." >&2
     return 1

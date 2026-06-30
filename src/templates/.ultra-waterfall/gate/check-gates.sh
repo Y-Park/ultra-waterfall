@@ -55,6 +55,8 @@ if [ -d "$UW/verify" ] && ls "$UW"/verify/*.sh >/dev/null 2>&1; then
     # teeth: 짝이 되는 mutant가 있으면 주입 후 MISS여야 함
     if [ -f "$UW/verify/$ac.mutant.sh" ]; then
       if sh "$UW/verify/$ac.mutant.sh"; then bad "G5 teeth[$ac]: mutant가 검증을 통과 → teeth 없음(검증 약함)"; else note "G5 teeth[$ac]: mutant MISS(teeth 있음)"; fi
+    else
+      bad "G5 teeth[$ac]: mutant 스크립트 없음($ac.mutant.sh) → teeth 미입증(charter teeth 계약 위반)"
     fi
   done
 else

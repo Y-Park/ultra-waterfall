@@ -1,10 +1,10 @@
 {
   "schemaVersion": "0.1.0",
   "framework": "ultra-waterfall",
-  "frameworkVersion": "0.1.0",
+  "frameworkVersion": "0.3.0",
   "release": {
     "canonicalSource": "github-release",
-    "plannedTag": "v0.1.0",
+    "plannedTag": "v0.3.0",
     "status": "in-development"
   },
   "applicationMode": "adoption-only",
@@ -22,9 +22,9 @@
     "targetPath": ".ultra-waterfall/version.json",
     "format": {
       "schemaVersion": "0.1.0",
-      "frameworkVersion": "0.1.0",
+      "frameworkVersion": "0.3.0",
       "source": "github-release",
-      "releaseTag": "v0.1.0",
+      "releaseTag": "v0.3.0",
       "installedAt": "ISO-8601 timestamp",
       "updatedAt": "ISO-8601 timestamp"
     },

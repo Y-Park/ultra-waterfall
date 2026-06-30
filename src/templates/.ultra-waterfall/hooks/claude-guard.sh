@@ -21,10 +21,19 @@ case "$MODE" in
   edit)
     fp=$(field file_path)
     [ -n "$fp" ] || exit 0
-    # 절대/상대 경로 모두 커버하도록 suffix(*/) 매칭
+    # (1) 프레임워크 강제 정의 = 항상 보호(에이전트가 어느 단계에서도 수정 안 함)
     case "$fp" in
-      */.ultra-waterfall/bin/*|*/.ultra-waterfall/gate/*|*/.ultra-waterfall/hooks/*|*/.ultra-waterfall/verify/*|*/.github/workflows/uw-gate.yml|*/.github/CODEOWNERS|*/.claude/settings.json|*charter*)
-        block "강제 정의/계약 파일 직접 수정($fp) — LOOP 중 금지. charter급이면 에스컬레이션." ;;
+      */.ultra-waterfall/bin/*|*/.ultra-waterfall/gate/*|*/.ultra-waterfall/hooks/*|*/.github/workflows/uw-gate.yml|*/.github/CODEOWNERS|*/.claude/settings.json)
+        block "강제 정의 파일 수정($fp) — 금지(charter급 에스컬레이션)." ;;
+    esac
+    # (2) 계약(charter·verify) = 인테이크에서 생성, LOOP 중에만 동결 → phase-aware (intake happy-path 허용)
+    case "$fp" in
+      *charter*|*/.ultra-waterfall/verify/*)
+        st=""
+        ls "$ROOT"/.ultra-waterfall/task-*.json >/dev/null 2>&1 && st=$(ls -t "$ROOT"/.ultra-waterfall/task-*.json 2>/dev/null | head -1 | xargs -I{} sed -n 's/.*"state"[[:space:]]*:[[:space:]]*"\([^"]*\)".*/\1/p' {} | head -1)
+        case "$st" in
+          implementing|verifying|correcting) block "LOOP 중 계약(charter/verify) 수정($fp) — 동결됨. charter급 에스컬레이션." ;;
+        esac ;;
     esac
     exit 0 ;;
   bash)

@@ -64,6 +64,7 @@ ls "$UW"/task-*.json >/dev/null 2>&1 && for ls_f in "$UW"/task-*.json; do
   [ -n "$ch" ] && [ -f "$ROOT/$ch" ] || continue
   cur="sha256:$(git hash-object "$ROOT/$ch" 2>/dev/null || true)"
   note "charter=$ch baseline=$base_hash cur=$cur (정규화 규칙은 charter 머리말 참조)"
+  [ -z "$base_hash" ] || [ "$cur" = "$base_hash" ] || bad "charter hash mismatch: $ch — 잠긴 charter가 baseline과 다름(charter급 에스컬레이션 필요)"
 done
 
 # --- G5: 기계실행 검증을 clean-room에서 직접 재실행(보고 불신) + red-first/teeth ---

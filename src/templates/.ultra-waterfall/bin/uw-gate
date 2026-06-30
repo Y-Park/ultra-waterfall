@@ -34,9 +34,10 @@ PROTECTED='
 '
 
 # 프레임워크가 LOOP 중 정당하게 쓰는 런타임 산출물 — charter allow에 없어도 자동 in-scope.
-# (loop-state·검증 스크립트·버전·HALT는 매 task에서 생기거나 갱신된다. 이게 없으면
+# (활성 charter·loop-state·검증 스크립트·버전·HALT는 매 task에서 생기거나 갱신된다. 이게 없으면
 #  base..head diff의 task-*.json/verify/*가 out-of-scope로 오탈락해 G3가 모든 PR을 막는다.)
 # 주의: machinery(bin/gate/hooks/CODEOWNERS/settings)는 위 PROTECTED가 먼저 차단하므로 풀리지 않는다.
+# charter 변경은 check-gates가 별도로 가시화하고 CODEOWNERS review가 하드 게이트로 다룬다.
 FRAMEWORK_MANAGED='
 .ultra-waterfall/task-*.json
 .ultra-waterfall/verify/*
@@ -116,7 +117,20 @@ changed_paths() {
 }
 
 cmd_charter_scope() {
-  mode=${1:-}; rng=${2:-}
+  mode=""; rng=""
+  while [ $# -gt 0 ]; do
+    case "$1" in
+      --staged) mode="--staged"; shift ;;
+      --range)
+        [ -n "${2:-}" ] || die "charter-scope: --range <base>...<head> 필요"
+        mode="--range"; rng=$2; shift 2 ;;
+      --charter)
+        [ -n "${2:-}" ] || die "charter-scope: --charter <path> 필요"
+        CHARTER=$2; shift 2 ;;
+      *) die "charter-scope: unknown arg '$1'" ;;
+    esac
+  done
+  [ -n "$mode" ] || die "charter-scope: --staged 또는 --range 필요"
   ch=$(resolve_charter) || die "active charter not found (use --charter)"
   [ -f "$ch" ] || die "charter file missing: $ch"
   # degenerate fence(빈/전역 allow)는 강제 불가 → 약화/우회 말고 거부(F)
@@ -141,7 +155,9 @@ cmd_charter_scope() {
     hit=0
     for g in $deny; do if match_glob "$p" "$g"; then hit=1; break; fi; done
     if [ "$hit" = 1 ]; then echo "VIOLATION(deny): $p — charter 제외(off-charter)"; viol=1; continue; fi
-    # 2.5) 프레임워크 관리 산출물(loop-state·verify·version·HALT)은 자동 in-scope (PROTECTED가 먼저라 machinery는 안 풀림)
+    # 2.5) 활성 charter와 프레임워크 관리 산출물(loop-state·verify·version·HALT)은 자동 in-scope
+    #      (PROTECTED가 먼저라 machinery는 안 풀림. charter 변경 자체는 check-gates/CODEOWNERS/hash가 다룸.)
+    if [ "$p" = "$ch" ]; then continue; fi
     hit=0
     for g in $FRAMEWORK_MANAGED; do if match_glob "$p" "$g"; then hit=1; break; fi; done
     if [ "$hit" = 1 ]; then continue; fi
@@ -262,7 +278,14 @@ cmd_install_hooks() {
 sub=${1:-}; [ $# -gt 0 ] && shift || true
 cmd_lint_fence() {
   ch=""
-  [ "${1:-}" = "--charter" ] && ch=$2
+  while [ $# -gt 0 ]; do
+    case "$1" in
+      --charter)
+        [ -n "${2:-}" ] || die "lint-fence: --charter <path> 필요"
+        ch=$2; shift 2 ;;
+      *) die "lint-fence: unknown arg '$1'" ;;
+    esac
+  done
   [ -n "$ch" ] || ch=$(resolve_charter) || die "active charter not found (use --charter)"
   lint_fence "$ch"
 }

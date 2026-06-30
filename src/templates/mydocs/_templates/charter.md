@@ -35,7 +35,7 @@ charter 해시(baseline): `{잠금 시 git hash-object 또는 sha256, loop-state
 
 ## 강제 범위 (scope fence)
 
-LOOP가 건드릴 수 있는 파일 경계를 **기계 판독 가능**하게 고정한다. `uw-gate`(로컬 tamper-evidence)와 merge 시점 CI(권위)가 이 블록으로 변경 경로를 검사한다(G3). `allow`는 산출 경계, `deny`는 그 안의 명시 제외. 강제 정의 경로(`.ultra-waterfall/{bin,gate,hooks}/**`, `.github/CODEOWNERS`, `.github/workflows/uw-gate.yml`, `.claude/settings.json`, 이 charter 자신)는 도구가 **항상 보호**한다. 프레임워크 런타임 산출물(`.ultra-waterfall/task-*.json`·`verify/*`·`version.json`·`HALT`)은 LOOP가 정당하게 갱신하므로 **자동 in-scope**다(여기 적지 않아도 됨). `allow`는 좁게(광역 `**` 단독 allow는 `uw-gate`가 거부). 이 블록을 포함한 charter 해시가 baseline이며, 느슨화는 charter급 에스컬레이션이다.
+LOOP가 건드릴 수 있는 파일 경계를 **기계 판독 가능**하게 고정한다. `uw-gate`(로컬 tamper-evidence)와 merge 시점 CI(권위)가 이 블록으로 변경 경로를 검사한다(G3). `allow`는 산출 경계, `deny`는 그 안의 명시 제외. 강제 정의 경로(`.ultra-waterfall/{bin,gate,hooks}/**`, `.github/CODEOWNERS`, `.github/workflows/uw-gate.yml`, `.claude/settings.json`)는 도구가 **항상 보호**한다. 활성 charter 자신은 scope 검사에서는 자동 in-scope지만, 변경 사실은 CI가 가시화하고 CODEOWNERS review와 `charterHash` 일치로 다룬다. 프레임워크 런타임 산출물(`.ultra-waterfall/task-*.json`·`verify/*`·`version.json`·`HALT`)은 LOOP가 정당하게 갱신하므로 **자동 in-scope**다(여기 적지 않아도 됨). `allow`는 좁게(광역 `**` 단독 allow는 `uw-gate`가 거부). 이 블록을 포함한 charter 해시가 baseline이며, 느슨화는 charter급 에스컬레이션이다.
 
 <!-- uw:scope-fence:begin -->
 allow {산출 경로 글롭, 예: src/**}

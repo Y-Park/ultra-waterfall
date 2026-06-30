@@ -1,5 +1,7 @@
 # Ultra-Waterfall
 
+![Ultra-Waterfall](src/docs/assets/ultra-waterfall.png)
+
 ## 인테이크 한 번으로 방향을 잡으면, AI가 자율 LOOP로 끝까지 실행하는 방법론
 
 Ultra-Waterfall은 AI에게 "그냥 만들어줘"라고 맡기는 방식도, 모든 단계마다 사람이 승인 버튼을 누르는 방식도 아닙니다. **사람은 시작에서 방향만 확실히 잡아주고(인테이크), 그 뒤로는 AI가 자율 LOOP를 돌며 자동 검증이 인간 승인을 대체합니다.**
@@ -251,14 +253,21 @@ your-repo/
 ├── AGENTS.md                       운영 규칙 단일 진실 원천
 ├── CLAUDE.md                       Claude Code용 (AGENTS.md 참조)
 ├── .ultra-waterfall/
+│   ├── bin/uw-gate                 로컬 tamper-evidence CLI
+│   ├── gate/check-gates.sh         merge 시점 CI 게이트
+│   ├── hooks/                      pre-commit/pre-push/Claude guard
+│   ├── verify/                     task별 frozen 검증 스크립트
 │   ├── version.json                적용된 ultra-waterfall version 기록
 │   └── task-{N}.json               task별 자율 LOOP 상태 (인테이크/등록 시 생성)
 ├── .github/
+│   ├── CODEOWNERS
 │   ├── ISSUE_TEMPLATE/task.yml
-│   └── pull_request_template.md
+│   ├── pull_request_template.md
+│   └── workflows/uw-gate.yml
 ├── .agents/
 │   └── skills -> ../mydocs/skills  Codex 인식 경로 (심볼릭 링크)
 ├── .claude/
+│   ├── settings.json               Claude Code PreToolUse 마찰 배선
 │   └── skills -> ../mydocs/skills  Claude Code 인식 경로 (심볼릭 링크)
 └── mydocs/
     ├── _templates/         산출물별 출력 형식 (charter 포함)
@@ -284,7 +293,7 @@ your-repo/
 - 자동 검증으로 판단할 수 없는 charter급 모호성·실패만 에스컬레이션으로 인간을 부릅니다.
 - 무한 LOOP를 막기 위해 자기수정 한도 N과 전역 가드를 반드시 유한 값으로 둡니다.
 - 이슈 진행 추적은 GitHub의 linked PR cross-reference와 라벨/마일스톤에 위임합니다.
-- 최신 상태는 이슈 metadata, 현재 branch 또는 PR, `mydocs/`, `loop-state.json`에서 찾을 수 있어야 합니다.
+- 최신 상태는 이슈 metadata, 현재 branch 또는 PR, `mydocs/`, `.ultra-waterfall/task-{N}.json`에서 찾을 수 있어야 합니다.
 - 프레임워크는 다양한 프로젝트 유형에서 동작해야 합니다. 특정 언어·빌드·배포·제품 규칙은 core가 아니라 대상 저장소 템플릿에 둡니다.
 - 프로세스에는 엄격하고, 도구에는 유연해야 합니다.
 

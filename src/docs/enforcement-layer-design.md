@@ -12,7 +12,7 @@
 - `git commit --no-verify`는 **그 차단을 우회**한다(커밋 성공). ✔
 - fresh `git clone`에서 `core.hooksPath`는 **UNSET = 기본 fail-OPEN**(추적된 hook이 자동 배포되지 않음). ✔
 - `git merge --no-ff`의 merge 자동커밋은 **pre-commit을 발화시키지 않는다**. ✔ (rebase 리플레이·squash·amend·commit-tree+update-ref 플러밍도 동일 계열 — 근거조사 실측)
-- repo 사실: `.claude/settings.json` 없음, manifest는 hook/CI/settings 0개, `.github`엔 템플릿만, CI 미배선, `.ultra-waterfall/`는 미추적(loop-state per-task).
+- 초기 repo 사실(강제 레이어 구현 전): `.claude/settings.json` 없음, manifest는 hook/CI/settings 0개, `.github`엔 템플릿만, CI 미배선, `.ultra-waterfall/`는 미추적(loop-state per-task). 현재 템플릿은 이 결함을 반영해 hook/CI/CODEOWNERS/settings를 manifest에 포함한다.
 - GitHub `pull_request` 이벤트는 **PR head ref의 workflow 정의**를 실행한다(근거조사) → 에이전트가 자기 publish 브랜치에서 required job을 `exit 0`으로 고쳐 통과 가능. **이것이 단일 백스톱의 핵심 구멍.**
 
 **함의:** 같은 머신·같은 권한에서 도는 어떤 hook/CLI/플래그도 자율 에이전트에 대한 *강제*가 아니다(honor-system을 코드로 옮긴 것). 진짜 강제는 에이전트가 통제하지 않는 CI뿐이며, 그 CI조차 기본 구성에선 head-workflow로 우회가능하다.

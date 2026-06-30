@@ -14,6 +14,7 @@ ultra-waterfall 방법론의 변경 이력. 형식은 [Keep a Changelog](https:/
 - **독립 검증 적대화** [드라이런 검증-무결성 대응]: 독립 검증을 "재채점"에서 **"적대적 반증(refute-first)"**으로 격상. 검증자는 (a) "충족 못 하는 반례를 찾아라" 태도, (b) **깨끗한 체크아웃에서 직접** 명령 재실행(구현자 로그 불신, 보고≠재실행이면 MISS), (c) **독립 적대 프로브 필수**(동결 명령 외 실패공간을 자기 입력으로 추가 공격 — 동결 명령이 통과해도 프로브가 위반을 찾으면 teeth 부족으로 에스컬레이션). 검증자가 구현자와 같은 사각을 공유하는 "상관된 맹점"을 제거. (ultra_loop_guide/stage-report/final-report/stage_report 템플릿/README)
 
 ### Fixed
+- **uw-gate.yml job 이름과 doctor 검증 불일치**: 워크플로 이름은 `uw-gate`인데 job id가 `gate`라, GitHub가 required status check를 `gate`로 보고 → `uw-gate doctor`의 `*uw-gate*` 매칭이 운영자가 올바로 등록해도 false-FAIL. job을 `uw-gate`로 rename해 check 이름·doctor 매칭·`operator-setup.md` 문구를 단일 이름으로 정합(어답터 부재로 마이그레이션 부담 없음). operator-setup 내부 불일치(`uw-gate / gate` vs `gate`)도 함께 해소.
 - **[공개 감사 P0] uw-gate charter-scope의 fence 글롭 cwd 확장 버그**: unquoted for-loop이 `dir/**`·PROTECTED 글롭을 cwd 파일로 pathname-expand → 권위 게이트 오작동. 매칭 루프에 scoped `set -f`(noglob).
 - **[공개 감사 P0] G5 verify-script emit이 어느 SKILL에도 배선 안 됨**: charter는 `.ultra-waterfall/verify/*.sh`를 요구하나 생성 단계 부재 → CI G5가 모든 task에서 실패. task-intake 잠금 단계에 emit(+mutant) 배선 + scope-fence 작성 단계 추가 + charter 해시를 loop-state-only로(자기참조 회피, CI가 git hash-object로 재검증).
 - **[공개 감사 P1] claude-guard edit phase-blind**: charter/verify를 항상 차단해 인테이크 happy-path를 막던 것 → phase-aware(프레임워크 machinery는 항상 보호, 계약은 LOOP 중에만 동결).

@@ -21,13 +21,18 @@
 5. manifest 매핑대로 복사한다.
    - `src/templates/AGENTS1.md -> AGENTS.md`, `src/templates/CLAUDE1.md -> CLAUDE.md`
    - `src/templates/.github/ISSUE_TEMPLATE/task.yml`, `src/templates/.github/pull_request_template.md`
+   - 강제 레이어: `src/templates/.ultra-waterfall/{bin/uw-gate, gate/check-gates.sh, hooks/{pre-commit,pre-push,claude-guard.sh}}`, `src/templates/.github/{workflows/uw-gate.yml, CODEOWNERS}`, `src/templates/.claude/settings.json`
    - `src/templates/mydocs/_templates`, `src/templates/mydocs/manual`, `src/templates/mydocs/skills` 디렉터리
    - 각 작업 기억 폴더의 `.gitkeep`과 `README.md`
-6. 심볼릭 링크 생성: `.agents/skills -> ../mydocs/skills`, `.claude/skills -> ../mydocs/skills`
-7. `.ultra-waterfall/version.json` 생성. `frameworkVersion`, `releaseTag`, `installedAt`, `updatedAt`을 기록한다.
-8. placeholder 치환 (`{REPO_SLUG}`, `{REPO_NAME}`, `{BASE_BRANCH}`, `{PR_TEMPLATE_PATH}` 등)
-9. 대상 프로젝트 고유 규칙은 `AGENTS.md`의 지정 섹션(`{PROJECT_SPECIFIC_RULES}` 등)에만 추가한다.
-10. `git diff`로 변경을 확인하고 적용 결과를 보고한다.
+6. 강제 레이어 실행권한 부여: `chmod +x .ultra-waterfall/bin/uw-gate .ultra-waterfall/gate/check-gates.sh .ultra-waterfall/hooks/*`
+7. 심볼릭 링크 생성: `.agents/skills -> ../mydocs/skills`, `.claude/skills -> ../mydocs/skills`
+8. `.ultra-waterfall/version.json` 생성. `frameworkVersion`, `releaseTag`, `installedAt`, `updatedAt`을 기록한다.
+9. placeholder 치환 (`{REPO_SLUG}`, `{REPO_NAME}`, `{BASE_BRANCH}`, `{PR_TEMPLATE_PATH}`, `{CODEOWNER}` 등). `{CODEOWNER}`(`.github/CODEOWNERS`)는 강제 정의·charter 변경에 인간 review를 강제하는 실효 owner이므로 실제 메인테이너 핸들/팀으로 반드시 치환한다(미치환 시 `uw-gate doctor`가 FAIL).
+10. 로컬 tamper-evidence 배선: `.ultra-waterfall/bin/uw-gate install-hooks`(각 클론에서 1회. fresh clone은 `core.hooksPath` UNSET=fail-OPEN이므로 진짜 floor는 CI뿐).
+11. 대상 프로젝트 고유 규칙은 `AGENTS.md`의 지정 섹션(`{PROJECT_SPECIFIC_RULES}` 등)에만 추가한다.
+12. `git diff`로 변경을 확인하고 적용 결과를 보고한다.
+
+> 강제 레이어는 복사·배선만으로는 **honor-system**이다. merge 시점 CI를 진짜 하드 강제로 만들려면 저장소 admin이 **[운영자 설정(Phase 0)](../operator-setup.md)**의 trust-root(base 브랜치 보호, `uw-gate` required check, CODEOWNERS 발효, least-priv 토큰)를 1회 설정해야 한다. 미설정 시 `uw-gate doctor`가 LOUD FAIL한다. 설계·위협모델: [`enforcement-layer-design.md`](../enforcement-layer-design.md).
 
 ## 범위 제한
 

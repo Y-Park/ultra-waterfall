@@ -1,0 +1,51 @@
+# self-CI — ultra-waterfall 저장소 자신의 품질 게이트.
+# 이 저장소가 "배포하는" 강제 스크립트(uw-gate, check-gates.sh, hooks)가 실제로
+# 동작·강제하는지 PR마다 검증한다. (적용 대상 저장소의 merge 게이트인 uw-gate.yml과는 별개.)
+name: self-ci
+
+on:
+  pull_request:
+  push:
+    branches: [main]
+
+permissions:
+  contents: read
+
+jobs:
+  gates:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: POSIX 구문 검사 (sh -n, 하드 게이트)
+        run: |
+          set -eu
+          rc=0
+          for f in \
+            src/templates/.ultra-waterfall/bin/uw-gate \
+            src/templates/.ultra-waterfall/gate/check-gates.sh \
+            src/templates/.ultra-waterfall/hooks/pre-commit \
+            src/templates/.ultra-waterfall/hooks/pre-push \
+            src/templates/.ultra-waterfall/hooks/claude-guard.sh \
+            test/e2e-gates.sh \
+            src/docs/example/verify/ac1.sh \
+            src/docs/example/verify/ac1.mutant.sh; do
+            if sh -n "$f"; then echo "ok   - sh -n $f"; else echo "FAIL - sh -n $f"; rc=1; fi
+          done
+          exit $rc
+
+      - name: shellcheck (실오류만 — severity=error)
+        run: |
+          set -eu
+          # 강제 스크립트는 set -f 가드 하의 의도적 word-splitting(SC2086 등)을 쓴다.
+          # 스타일/info가 아니라 실제 오류(parse/정의 오류 등)만 게이트한다.
+          shellcheck --shell=sh --severity=error \
+            src/templates/.ultra-waterfall/bin/uw-gate \
+            src/templates/.ultra-waterfall/gate/check-gates.sh \
+            src/templates/.ultra-waterfall/hooks/pre-commit \
+            src/templates/.ultra-waterfall/hooks/pre-push \
+            src/templates/.ultra-waterfall/hooks/claude-guard.sh \
+            test/e2e-gates.sh
+
+      - name: 강제 레이어 e2e (격리 repo 5시나리오, 하드 게이트)
+        run: sh test/e2e-gates.sh

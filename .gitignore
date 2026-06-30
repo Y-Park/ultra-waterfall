@@ -4,13 +4,20 @@
 hyper-waterfall-clone/
 
 # 이 저장소에 적용한 hyper-waterfall 방법론 인스턴스(로컬 작업 편의용) — 추적 제외.
-# 추적 대상은 src/(ultra 방법론 정의)·README·LICENSE·CHANGELOG·archive/ 뿐.
+# 추적 대상: src/(ultra 방법론 정의)·README·LICENSE·CHANGELOG·archive·test/·.github/workflows/.
 # 루트 앵커(/) 필수: src/templates/ 아래의 동일 이름 추적 자산을 마스킹하지 않기 위함.
 /AGENTS.md
 /CLAUDE.md
 /.agents/
 /.claude/
-/.github/
+# 루트 .github의 hyper 인스턴스(ISSUE_TEMPLATE·pull_request_template)는 마스킹하되,
+# 저장소 자신을 검증하는 self-CI 워크플로는 추적·공개한다.
+/.github/*
+!/.github/workflows/
 /.hyper-waterfall/
 /mydocs/
 /archive/
+
+# python bytecode
+__pycache__/
+*.pyc

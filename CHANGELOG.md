@@ -5,6 +5,8 @@ ultra-waterfall 방법론의 변경 이력. 형식은 [Keep a Changelog](https:/
 ## [Unreleased]
 
 ### Added
+- **워크드 예시** `src/docs/example/`: 작은 task(TodoList 음수 인덱스 버그 수정) 하나가 LOOP를 통과하며 남기는 산출물 전 체인을 채워진 형태로 제공(charter→구현계획서→단계 보고서→최종 보고서 + 실행형 검증 `verify/ac1.sh`·teeth `ac1.mutant.sh`). 예시의 결함·mutant은 self-CI e2e 하니스 픽스처와 동일 = 예시가 곧 회귀 테스트. README 핵심 개념에서 링크.
+- **저장소 self-CI** [품질 게이트]: `test/e2e-gates.sh`(강제 레이어 e2e를 추적 위치로, 5시나리오 assert + exit code) + `.github/workflows/self-ci.yml`(PR/push마다 `sh -n` + `shellcheck --severity=error` + e2e). 배포하는 강제 스크립트(uw-gate/check-gates/hooks)가 실제로 강제하는지 매 변경 검증한다(적용 대상의 merge 게이트 `uw-gate.yml`과는 별개).
 - **운영자 설정 가이드 (Phase 0)** `src/docs/operator-setup.md`: 강제가 성립하려면 admin이 깔아야 하는 trust-root(base 브랜치 보호, uw-gate required check, require-workflows pin, least-priv 에이전트 토큰, CODEOWNERS) 체크리스트 + `uw-gate doctor` 검증.
 - **hyper-waterfall(MIT) 귀속 명확화** [공개 준비]: `THIRD_PARTY_LICENSE`에 식별 헤더 추가(파생 관계 명시 + postmelee 원 MIT 고지 verbatim 보존 = MIT 요건 충족) + README 라이선스 섹션이 파생·THIRD_PARTY_LICENSE를 가리킴.
 - **강제 레이어 (#3~5) 설계+구현** [honor-system 천장 대응]: charter 적합성(G3)·우회불가 에스컬레이션(G4)·아티팩트도출+격리(G5)를 **2층**으로 구현. 로컬(`uw-gate` CLI + git hooks + Claude `settings.json` PreToolUse)은 tamper-evidence+마찰(우회 가능 — 정직하게 '강제 아님'으로 표기), **merge 시점 CI**(`.github/workflows/uw-gate.yml` → base-ref `check-gates.sh`) + branch protection + `.github/CODEOWNERS` + least-priv 토큰이 유일한 하드 강제. `uw-gate doctor`가 trust-root 미설정을 LOUD FAIL. loop-state v0.3 필드(enforcement/escalations/scopeFenceHash/gateBaselineRef), charter scope-fence 블록, CI 실행형 검증 emit(`.ultra-waterfall/verify/*.sh`). 격리 임시 repo로 G3·hook·guard 검증(in-scope 통과 / protected·out-of-scope·--no-verify 가시화). 전체 설계·위협모델: `src/docs/enforcement-layer-design.md`. 정직한 상한 **8→9**(완전 우회불가는 외부 trust-root=인간+admin 필요).

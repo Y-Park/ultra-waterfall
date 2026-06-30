@@ -9,12 +9,12 @@ ultra-waterfall의 강제 레이어에서 **유일한 진짜 하드 강제는 me
 ### 1. base 브랜치 보호 (branch protection)
 대상: `{BASE_BRANCH}`(기본 `main`). GitHub → Settings → Branches → Add rule:
 - **Require a pull request before merging** (직접 push 금지).
-- **Require status checks to pass** → 아래 2의 `uw-gate / gate` 잡을 required로 추가.
+- **Require status checks to pass** → 아래 2의 `uw-gate` job을 required로 추가.
 - **Require review from Code Owners** (아래 4의 CODEOWNERS 발효).
 - **Do not allow bypassing the above settings**(admin 포함) 권장 — 안 그러면 admin/에이전트가 우회.
 
 ### 2. uw-gate를 required status check로
-`.github/workflows/uw-gate.yml`가 PR마다 돌고, 그 `gate` job을 1의 required check 목록에 넣는다. PR이 한 번 돌아야 목록에 나타난다.
+`.github/workflows/uw-gate.yml`가 PR마다 돌고, 그 `uw-gate` job(=check 이름 `uw-gate`)을 1의 required check 목록에 넣는다. PR이 한 번 돌아야 목록에 나타난다. (`uw-gate doctor`가 이 이름으로 검증한다.)
 
 ### 3. (선호) require-workflows로 워크플로 핀
 PR head가 `uw-gate.yml` 자체를 바꿔 게이트를 무력화하는 구멍을 막는다. GitHub → Settings → Rules → Rulesets → **Require workflows to pass** 로 `uw-gate.yml`을 **base/org 수준에서 pin**한다. (불가하면 차선: 워크플로를 `pull_request_target`로 두고 base ref 로직 사용 — 이미 `uw-gate.yml`이 base-ref `check-gates.sh`를 쓴다.)

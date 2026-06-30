@@ -72,7 +72,7 @@ pr-merge-cleanup (자동: 이슈 close·브랜치 정리)
 - **자기수정 / 에스컬레이션**: MISS면 같은 Stage에서 `진단 → 수정 → 재검증`을 최대 N회. N회 실패나 charter급 사건(가정 붕괴, charter 변경 필요, 비가역·파괴적 위험, 가드레일 충돌, 전역 가드 도달)이면 LOOP를 멈추고 사람을 부릅니다.
 - **종료**: charter 전 수용기준이 OK가 되면 LOOP를 종료하고 최종 보고서를 쓴 뒤 PR을 게시합니다.
 
-LOOP 규범 전체는 [`ultra_loop_guide.md`](src/templates/mydocs/manual/ultra_loop_guide.md), 인테이크 절차는 [`task-intake`](src/templates/mydocs/skills/task-intake/SKILL.md) SKILL을 따릅니다.
+LOOP 규범 전체는 [`ultra_loop_guide.md`](src/templates/mydocs/manual/ultra_loop_guide.md), 인테이크 절차는 [`task-intake`](src/templates/mydocs/skills/task-intake/SKILL.md) SKILL을 따릅니다. 작은 task 하나가 남기는 산출물 체인(charter→구현계획서→단계 보고서→최종 보고서)을 채워진 형태로 보려면 [`src/docs/example/`](src/docs/example/) 워크드 예시를 참고하세요.
 
 ## 적용 방법
 

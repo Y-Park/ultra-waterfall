@@ -14,3 +14,7 @@ hyper-waterfall-clone/
 /.hyper-waterfall/
 /mydocs/
 /archive/
+
+# python bytecode
+__pycache__/
+*.pyc

@@ -30,9 +30,29 @@ if [ -n "$defn_changed" ] || [ -n "$ch_changed" ]; then
   note "(이 게이트는 변경을 가시화한다. 차단 결정은 branch protection의 CODEOWNERS required review가 한다.)"
 fi
 
+# --- 활성 charter 결정론적 해소(D): mtime 금지, loop-state state 기반. CI fresh checkout 비결정 제거 ---
+json_str() { sed -n "s/.*\"$1\"[[:space:]]*:[[:space:]]*\"\([^\"]*\)\".*/\1/p" "$2" | head -1; }
+active_charter=""; charter_ambig=0
+if ls "$UW"/task-*.json >/dev/null 2>&1; then
+  for ls_f in $(ls "$UW"/task-*.json | LC_ALL=C sort); do
+    case "$(json_str state "$ls_f")" in
+      implementing|verifying|correcting|planning|running)
+        c=$(json_str charter "$ls_f"); [ -n "$c" ] || continue
+        if [ -n "$active_charter" ] && [ "$active_charter" != "$c" ]; then charter_ambig=1; fi
+        active_charter=$c ;;
+    esac
+  done
+fi
+[ "$charter_ambig" = 0 ] || bad "G3: 활성 charter 2개 이상(loop-state) → 결정론적 scope 강제 불가. PR을 단일 task로 분리하라."
+[ -z "$active_charter" ] || note "active charter=$active_charter (loop-state 기반, mtime 비의존)"
+
 # --- G3: charter scope 재검사(head charter의 fence로, base..head 결과 트리) ---
 if [ -x "$GATE" ]; then
-  if "$GATE" charter-scope --range "$BASE...$HEAD"; then note "G3 charter-scope OK"; else bad "G3 charter-scope: off-charter 변경"; fi
+  if [ -n "$active_charter" ]; then
+    if "$GATE" charter-scope --range "$BASE...$HEAD" --charter "$active_charter"; then note "G3 charter-scope OK"; else bad "G3 charter-scope: off-charter 변경"; fi
+  else
+    if "$GATE" charter-scope --range "$BASE...$HEAD"; then note "G3 charter-scope OK"; else bad "G3 charter-scope: off-charter 변경"; fi
+  fi
 else
   bad "G3: uw-gate 실행 불가(.ultra-waterfall/bin/uw-gate 누락) → scope 강제 불가"
 fi
@@ -61,6 +81,27 @@ if [ -d "$UW/verify" ] && ls "$UW"/verify/*.sh >/dev/null 2>&1; then
   done
 else
   bad "G5: 기계실행 검증(.ultra-waterfall/verify/*.sh) 없음 → done을 자기보고가 아닌 아티팩트로 도출 불가. intake/task-start가 frozen 검증을 실행형으로 emit해야 함."
+fi
+
+# --- G5 parity(E): charter 선언 AC 집합 == verify/*.sh 집합 (gap=미강제 AC, orphan=계약외 검증) ---
+if [ -n "$active_charter" ] && [ -f "$ROOT/$active_charter" ]; then
+  declared=$(awk '/uw:verify-acs:begin/{f=1;next} /uw:verify-acs:end/{f=0} f' "$ROOT/$active_charter" \
+    | tr -s ' \t' '\n' | grep -E '^[A-Za-z][A-Za-z0-9_-]*$' | LC_ALL=C sort -u || true)
+  present=""
+  if ls "$UW"/verify/*.sh >/dev/null 2>&1; then
+    for v in "$UW"/verify/*.sh; do case "$v" in *.mutant.sh) continue ;; esac; present="$present$(basename "$v" .sh)
+"; done
+  fi
+  present=$(printf '%s' "$present" | sed '/^$/d' | LC_ALL=C sort -u)
+  if [ -z "$declared" ]; then
+    bad "G5 parity: charter에 uw:verify-acs 블록(CI 강제 AC 선언) 없음 → gap/orphan 탐지 불가. intake가 잠금 시 선언해야 함."
+  else
+    miss=$(printf '%s\n' "$declared" | while IFS= read -r a; do [ -n "$a" ] || continue; printf '%s\n' "$present" | grep -qxF "$a" || echo "$a"; done)
+    orph=$(printf '%s\n' "$present"  | while IFS= read -r a; do [ -n "$a" ] || continue; printf '%s\n' "$declared" | grep -qxF "$a" || echo "$a"; done)
+    [ -z "$miss" ] || bad "G5 parity: charter 선언 AC인데 verify 스크립트 없음(gap): $(printf '%s' "$miss" | tr '\n' ' ')"
+    [ -z "$orph" ] || bad "G5 parity: verify 스크립트인데 charter 미선언(orphan): $(printf '%s' "$orph" | tr '\n' ' ')"
+    [ -n "$miss$orph" ] || note "G5 parity: 선언 AC ↔ verify 스크립트 1:1 일치($(printf '%s' "$declared" | tr '\n' ' '))"
+  fi
 fi
 
 # --- G4: 미클리어 에스컬레이션 / open needs-human 라벨 ---

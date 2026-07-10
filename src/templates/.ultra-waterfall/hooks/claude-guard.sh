@@ -32,7 +32,7 @@ case "$MODE" in
         st=""
         ls "$ROOT"/.ultra-waterfall/task-*.json >/dev/null 2>&1 && st=$(ls -t "$ROOT"/.ultra-waterfall/task-*.json 2>/dev/null | head -1 | xargs -I{} sed -n 's/.*"state"[[:space:]]*:[[:space:]]*"\([^"]*\)".*/\1/p' {} | head -1)
         case "$st" in
-          implementing|verifying|correcting) block "LOOP 중 계약(charter/verify) 수정($fp) — 동결됨. charter급 에스컬레이션." ;;
+          implementing|verifying|correcting|awaiting_merge) block "LOOP/merge 대기 중 계약(charter/verify) 수정($fp) — 동결됨. charter급 에스컬레이션." ;;
         esac ;;
     esac
     exit 0 ;;

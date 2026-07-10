@@ -24,12 +24,14 @@
 2. `exit.code`로 분기:
    - `running` 인 task가 있으면 → **재개**(3번). 인간이 지정하지 않는 한 새 task를 시작하지 않는다.
    - `escalated` → 인간 해소 입력이 있는지 확인. 없으면 진행 금지(대기). 있으면 resume 규약(아래 "에스컬레이션")으로 복귀.
-   - `completed` 만 있거나 진행 중 task가 없으면 → 새 인테이크 가능.
+   - `awaiting_merge` → PR이 열려 있으면 인간 검토 대기. `gh pr view`가 `MERGED`를 증명하면 effective `done`으로 보고 cleanup한다.
+   - merged PR에 대응하는 historical task만 있거나 진행 중 task가 없으면 → 새 인테이크 가능.
 3. lease 확인(동시 세션 충돌 방지): `lease.sessionId`가 있고 `acquiredAt + ttlSec`가 아직 유효하면 다른 세션이 작업 중이다. stale(만료)일 때만 lease를 새 `sessionId`로 갱신하고 이어받는다.
 4. `state`로 재진입 지점 결정:
    - `planning` → [`task-start`](../skills/task-start/SKILL.md)부터.
    - `implementing`/`verifying`/`correcting` → 해당 `currentStage`의 [`task-stage-report`](../skills/task-stage-report/SKILL.md) 재개. 먼저 working tree 화해(아래 "크래시 화해").
-   - `done` 직전(전 수용기준 OK) → [`task-final-report`](../skills/task-final-report/SKILL.md).
+   - 전 수용기준 OK이나 final 미실행 → [`task-final-report`](../skills/task-final-report/SKILL.md).
+   - `awaiting_merge` → 구현을 재개하지 않고 인간 PR 검토를 기다린다.
 5. **크래시 화해**: `git status --short`로 미커밋 변경을 확인한다. `lastVerification`/`history`와 대조해, 검증 통과 후 커밋만 빠진 경우면 커밋하고, 미검증 변경이면 현재 Stage 재검증으로 흡수한다. 절대 미검증 변경을 완료로 간주하지 않는다.
 
 `src/docs/agent-entrypoint.md`의 "절차 선택"도 "진행 중 LOOP 재개"를 이 절차로 안내한다.
@@ -57,8 +59,8 @@ pr-merge-cleanup (자동)
 ```
 
 1. **인테이크**: [`task-intake`](../skills/task-intake/SKILL.md)로 charter 구체화·잠금. 이슈가 없으면 [`task-register`](../skills/task-register/SKILL.md)로 채번 후 charter 파일명을 확정한다.
-2. **task-start**: charter 잠금 후 자동으로 브랜치·오늘할일·구현계획서(charter 수용기준→Stage 커버리지 포함)·loop-state 초기화·관찰용 draft PR을 만든다.
-3. **Stage 반복**: [`task-stage-report`](../skills/task-stage-report/SKILL.md)를 Stage 순서대로 호출. 각 Stage는 가드검사→구현→독립검증→드리프트점검→기록·커밋·loop-state 갱신.
+2. **task-start**: expected intake artifacts(charter·verify scripts·loop-state)와 구현계획서·오늘할일을 product 구현 전 **계약 baseline commit**으로 묶고, 관찰용 draft PR을 만든다.
+3. **Stage 반복**: [`task-stage-report`](../skills/task-stage-report/SKILL.md)를 Stage 순서대로 호출. 각 Stage는 가드검사→구현→candidate commit snapshot→격리 worktree 독립검증→드리프트점검→기록·커밋·loop-state 갱신.
 4. **종료**: 전 수용기준 OK면 [`task-final-report`](../skills/task-final-report/SKILL.md)로 통합검증→최종 보고서→PR. **PR 검토·merge는 인간.**
 5. **정리**: 인간 merge 후 [`pr-merge-cleanup`](../skills/pr-merge-cleanup/SKILL.md).
 
@@ -68,7 +70,7 @@ pr-merge-cleanup (자동)
 
 - **독립 검증 주체(반증 태도)**: 구현 대화이력을 공유하지 않는 별도 검증자가 판정한다. 1차 임무는 "충족 확인"이 아니라 **"charter를 충족하지 *못하는* 반례를 찾아라"**(refute-first). 반례를 못 찾고 모든 검증이 통과할 때만 OK, 의심이 남으면 MISS로 강등(default-MISS-on-doubt). 입력은 **charter(수용·검증 기준) + 변경 diff**만 주고, 구현자의 "왜 OK인지" 서사는 주지 않는다.
   - Claude Code/Codex: 서브에이전트(Agent/Task)를 새 컨텍스트로 검증 전용 호출. 불가 시 최소한 **구현과 검증을 같은 응답에서 하지 않고** fresh-eyes 적대 패스로 한다.
-  - **깨끗한 체크아웃에서 검증자가 직접 명령을 재실행**한다. 구현자 보고 로그를 신뢰하지 말고, 보고 로그 ≠ 자기 재실행 결과면(보고≠실제) MISS.
+  - 구현 파일만 index에 올려 `git write-tree` + `git commit-tree`로 branch를 움직이지 않는 candidate SHA를 만든다. 검증자는 그 SHA의 **깨끗한 detached worktree에서 직접** 명령을 재실행한다. 구현자 보고 로그 ≠ 자기 재실행 결과면 MISS.
 - **독립 적대 프로브(필수)**: 검증자는 charter 동결 명령을 재실행하는 데 그치지 않고, 그 AC의 **실패공간을 자기만의 입력으로 추가 공격**한다(경계·다항목·반례 — 동결 명령이 보지 않는 각도). 동결 명령은 통과하는데 적대 프로브가 위반을 찾으면 = **동결 검증에 teeth 부족** → MISS + 검증 보강 charter급 에스컬레이션. (동결 명령만 재실행하면 검증자가 구현자와 같은 사각을 공유해 독립성이 무의미해진다 — refute-first의 핵심.)
 - **객관 증거 우선**: 검증 명령(exit code/테스트/diff)의 원문 출력을 로그 파일 `mydocs/working/task_{milestone}_{issue}_stage{S}.log`로 커밋하고, 보고서의 evidence는 그 **로그 경로 + 해시**로 한정한다. 자유텍스트 자가 인용만으로 OK 금지.
 - **검증 명령 불변(charter 종속)**: Stage에서 실행하는 검증 명령은 charter 검증 기준에서 도출돼 구현계획서에 고정된다. **자기수정 중 검증 명령을 약화·변경하지 않는다**(echo·부분검사로 바꿔 통과 금지). 검증 명령을 바꿔야 하면 charter급 사건이다.
@@ -146,12 +148,12 @@ charter는 LOOP의 유일한 불변 계약이다. "골대 이동"(MISS를 만나
 규약을 *문서로* 적는 것만으론 shell·파일 접근을 가진 에이전트를 막지 못한다(드라이런 F3). 강제는 두 층으로 정직하게 나눈다.
 
 - **로컬 층 = tamper-evidence + 마찰(강제 아님)**: `.ultra-waterfall/bin/uw-gate` + git hooks(`.ultra-waterfall/hooks/`) + `.claude/settings.json` PreToolUse(Claude 전용) + `.ultra-waterfall/HALT` sentinel. 전부 `--no-verify`·`core.hooksPath`·plumbing·settings 자기편집으로 우회 가능 → "막았다"가 아니라 "위반을 가시화·마찰화"로 읽는다. Codex는 PreToolUse 등가물이 없어 마찰이 더 약하다(비대칭 — 숨기지 않는다).
-- **권위 층 = merge 시점 CI(유일한 진짜 하드 강제)**: `.github/workflows/uw-gate.yml`가 **base ref의** `.ultra-waterfall/gate/check-gates.sh`로 `base..head`를 재검사한다(head가 게이트를 못 바꾸게). branch protection의 required check + `.github/CODEOWNERS`(게이트 정의·charter 보호) + **least-priv 토큰**(에이전트 토큰에서 merge·label remove·base push·workflow write 박탈)이 함께여야 성립. 이 trust-root는 **운영자(admin)·인간 reviewer**가 설치하며, 방법론은 `uw-gate doctor`로 *요구·검증*만 한다(미충족 시 LOUD FAIL — 비강제를 강제로 믿는 상태 차단).
+- **권위 층 = merge 시점 CI(유일한 진짜 하드 강제)**: `.github/workflows/uw-gate.yml`가 **base ref의** `check-gates.sh`와 `uw-gate`를 함께 추출해 `base..head`를 재검사한다(head가 gate/helper를 못 바꾸게). branch protection의 required check + `.github/CODEOWNERS` + least-priv 토큰이 함께여야 성립한다. 이 trust-root는 운영자·인간 reviewer가 설치하며, 방법론은 `uw-gate doctor`로 요구·검증만 한다.
 
 세 게이트(권위 층에서 강제):
 - **G3 charter 적합성**: `base..head` 변경 경로가 charter scope fence(allow/deny) 내인가 + 강제 정의 경로·charter 변경은 CODEOWNER review 필수. off-charter = 약화 말고 charter급 에스컬레이션.
-- **G4 우회불가 에스컬레이션**: 드리프트/위반 시 정지. 재개는 **에이전트 토큰이 못 만드는 외부 신호**(비-에이전트의 `needs-human` 라벨 제거 + 클리어 산출물)로만. `loop-state.escalations[]`에 기록하고 CI가 미클리어 escalation을 발견하면 merge 차단.
-- **G5 아티팩트 도출 + 격리**: done을 자기보고가 아니라, charter가 emit한 `.ultra-waterfall/verify/<ac>.sh`(+`.mutant.sh`)를 **CI가 clean checkout에서 직접 재실행**한 결과로 도출(red-first/teeth 합성). 검증 잡은 read-only 러너로 격리.
+- **G4 우회불가 에스컬레이션**: CI는 task Issue의 `needs-human` 제거 event가 escalation 시각 이후인지, event actor가 PR agent와 다른지, `clearedBy`와 일치하는지, `clearArtifact`가 HEAD의 `mydocs/feedback/`에 versioned됐는지, 같은 actor의 post-escalation `APPROVED` review가 있는지 escalation마다 1:1 대조한다. branch protection이 CODEOWNER review를 요구해야 이 approval이 trust-root가 되며, 조회·증거 불충분은 fail-close.
+- **G5 아티팩트 도출 + 격리**: loop-state 최초 추가 commit을 계약 baseline으로 도출하고 baseline/HEAD를 별도 detached worktree로 만든다. 각 frozen 검증의 **baseline MISS → HEAD PASS**, mutant의 **HEAD MISS**를 직접 재실행하며 baseline 이후 verify script 변경도 차단한다. 검증 잡은 read-only/no-secrets 러너로 격리.
 
 정직한 잔여(이 레이어 후에도 honor-system): in-loop 로컬 실행 우회, **silent-no-escalate**(산출물 0이라 어떤 게이트도 못 잡음 — G1 teeth+인간만), on-charter 파일 안 의미론적 드리프트, *약한*(항진은 아니나 mutant 미모델) 검증, 인간 reviewer rubber-stamp·admin 미설정. 전체 설계·위협모델은 [`enforcement-layer-design.md`](../../../docs/enforcement-layer-design.md), 강제가 성립하려면 admin이 깔아야 하는 trust-root는 [`operator-setup.md`](../../../docs/operator-setup.md)(Phase 0). 현실 도달점 8→9.
 
@@ -175,7 +177,7 @@ task마다 `.ultra-waterfall/task-{issue}.json` 하나. 진행 중 task는 `git 
   "selfCorrectionTotal": 0,
   "currentStageCorrections": 0,
   "guards": { "maxStages": 8, "maxSelfCorrectionTotal": 24, "maxPerStage": 3 },
-  "state": "planning | implementing | verifying | correcting | escalated | done",
+  "state": "planning | implementing | verifying | correcting | escalated | awaiting_merge",
   "lastVerification": { "stage": 0, "result": "OK | MISS", "by": "independent", "evidence": "working/...stage0.log#sha256" },
   "history": [ { "stage": 1, "result": "OK", "corrections": 0, "at": "ISO-8601" } ],
   "owner": "sessionId",
@@ -184,12 +186,13 @@ task마다 `.ultra-waterfall/task-{issue}.json` 하나. 진행 중 task는 `git 
   "scopeFenceHash": "sha256:... (charter scope-fence 블록; charterHash에 포함되는 파생값)",
   "gateBaselineRef": "origin/{BASE_BRANCH} (CI 권위 게이트의 base ref)",
   "escalations": [ { "at": "ISO-8601", "reason": "", "clearedBy": "non-agent actor 또는 null", "clearArtifact": "mydocs/feedback/... 또는 null" } ],
-  "exit": { "code": "running | completed | escalated", "reason": "", "needsHuman": false },
+  "exit": { "code": "running | awaiting_merge | escalated", "reason": "", "needsHuman": false },
   "updatedAt": "ISO-8601"
 }
 ```
 
 - `state`=현재 Stage 진행 위치, `exit.code`=LOOP 전체 상태. 매 갱신에 `updatedAt`(ISO-8601) 기록.
+- `awaiting_merge`는 전 AC OK 뒤 인간 merge를 기다리는 tracked 최종 상태다. `done`은 PR의 `MERGED`+`mergeCommit`이라는 외부 사실에서만 도출하며 merge 전 loop-state에 쓰지 않는다.
 - `totalStages`/`selfCorrectionTotal`=가드용 누적값. `plannedStages`=계획값(예측용, 누적값과 구분).
 - `history[]`=Stage별 append-only 궤적(사후 감사·재구성용).
 - `enforcement`=`uw-gate doctor`가 채우는 trust-root 검증 결과(미충족이면 `doctorVerified:false` — 강제를 'active'로 주장하지 않는다). `escalations[]`=G4 발화·클리어 궤적(CI가 미클리어 항목 발견 시 merge 차단). `gateBaselineRef`=CI 권위 게이트 base ref.

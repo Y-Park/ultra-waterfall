@@ -28,6 +28,7 @@ jobs:
             src/templates/.ultra-waterfall/hooks/pre-push \
             src/templates/.ultra-waterfall/hooks/claude-guard.sh \
             test/e2e-gates.sh \
+            test/e2e-lifecycle.sh \
             src/docs/example/verify/ac1.sh \
             src/docs/example/verify/ac1.mutant.sh; do
             if sh -n "$f"; then echo "ok   - sh -n $f"; else echo "FAIL - sh -n $f"; rc=1; fi
@@ -45,7 +46,11 @@ jobs:
             src/templates/.ultra-waterfall/hooks/pre-commit \
             src/templates/.ultra-waterfall/hooks/pre-push \
             src/templates/.ultra-waterfall/hooks/claude-guard.sh \
-            test/e2e-gates.sh
+            test/e2e-gates.sh \
+            test/e2e-lifecycle.sh
 
-      - name: 강제 레이어 e2e (격리 repo 5시나리오, 하드 게이트)
+      - name: 강제 레이어 e2e (격리 repo 17시나리오, 하드 게이트)
         run: sh test/e2e-gates.sh
+
+      - name: Lifecycle 계약 e2e (11단언, 하드 게이트)
+        run: sh test/e2e-lifecycle.sh

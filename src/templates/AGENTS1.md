@@ -47,11 +47,12 @@
 규약은 문서로 막히지 않는다. 강제는 두 층이다(상세: [`mydocs/manual/ultra_loop_guide.md`](mydocs/manual/ultra_loop_guide.md) "강제 레이어").
 
 - **로컬 = tamper-evidence + 마찰(강제 아님)**: `.ultra-waterfall/bin/uw-gate`(charter-scope/verify-run/halt/doctor) + git hooks(`.ultra-waterfall/hooks/`) + Claude 전용 `.claude/settings.json` PreToolUse. `--no-verify`·`core.hooksPath`·settings 자기편집으로 우회 가능.
-- **권위 = merge 시점 CI**: `.github/workflows/uw-gate.yml`가 base ref의 `check-gates.sh`로 `base..head`를 재검사(G3 scope / G4 미클리어 escalation / G5 verify clean 재실행). branch protection required check + `.github/CODEOWNERS` + least-priv 토큰이 trust-root.
+- **권위 = merge 시점 CI**: `.github/workflows/uw-gate.yml`가 base ref의 `check-gates.sh`와 `uw-gate`로 `base..head`를 재검사한다(G3 scope / G4 escalation event·actor·artifact·APPROVED review / G5 baseline MISS·HEAD PASS·mutant MISS clean 재실행). branch protection required check + `.github/CODEOWNERS` + least-priv 토큰이 trust-root.
 
 행동 규칙:
 - 강제 정의 경로(`.ultra-waterfall/{bin,gate,hooks}/**`, `.github/workflows/uw-gate.yml`, `.github/CODEOWNERS`, `.claude/settings.json`)와 charter는 **LOOP 중 수정 금지**(charter급 에스컬레이션).
 - off-charter 변경·검증 약화·`--no-verify` 우회 금지. HALT 활성 중 done/PR 금지.
+- final-report는 `awaiting_merge`까지만 기록한다. `done`은 인간 merge 후 GitHub `MERGED`+`mergeCommit`에서 도출한다.
 - **에이전트 실행 토큰**은 merge·label remove·base push·workflow write **없이** 운영한다(self-merge·에스컬레이션 자가해제 불가 = G4 성립).
 - **Codex 폴백**: Codex엔 PreToolUse 등가물이 없어 in-loop 마찰이 Claude보다 약하다 → 이 AGENTS 규약(honor-system) + 동일 git hook + **동일 CI 하드 floor**로 받는다(하드 강제는 도구 무관 동일).
 - **정직성**: 완전 우회불가는 외부 trust-root(인간 reviewer + admin) 없이는 불가. 방법론은 이를 `uw-gate doctor`로 요구·검증할 뿐 설치하지 못한다.

@@ -35,6 +35,7 @@ jobs:
           UW_GATE: /tmp/uw-gate
           UW_G4_REQUIRE_REMOTE: "1"
           UW_AGENT_ACTOR: ${{ github.event.pull_request.user.login }}
+          UW_PR_NUMBER: ${{ github.event.pull_request.number }}
         run: |
           set -eu
           base="${{ steps.refs.outputs.base }}"

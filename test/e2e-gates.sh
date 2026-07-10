@@ -24,7 +24,8 @@ assert_gate_from() {
   git show "$base:.ultra-waterfall/bin/uw-gate" >"$AUTH/uw-gate"
   chmod +x "$AUTH/check-gates.sh" "$AUTH/uw-gate"
   UW_GATE="$AUTH/uw-gate" UW_G4_REQUIRE_REMOTE=0 \
-    UW_G4_EVENTS_FILE="${G4_EVENTS_FILE:-}" UW_AGENT_ACTOR="${G4_AGENT_ACTOR:-agent}" \
+    UW_G4_EVENTS_FILE="${G4_EVENTS_FILE:-}" UW_G4_REVIEWS_FILE="${G4_REVIEWS_FILE:-}" \
+    UW_AGENT_ACTOR="${G4_AGENT_ACTOR:-agent}" \
     sh "$AUTH/check-gates.sh" "$base" "$head" >"$OUT" 2>&1; rc=$?
   if [ "$rc" -eq 0 ]; then got=PASS; else got=FAIL; fi
   if [ "$got" = "$want" ]; then
@@ -225,6 +226,12 @@ JSON
 cat >"$AUTH/events-agent-clear.json" <<'JSON'
 [{"event":"unlabeled","created_at":"2026-07-10T01:10:00Z","actor":{"login":"agent"},"label":{"name":"needs-human"}}]
 JSON
+cat >"$AUTH/reviews-human.json" <<'JSON'
+[{"state":"APPROVED","submitted_at":"2026-07-10T01:12:00Z","user":{"login":"human"}}]
+JSON
+cat >"$AUTH/reviews-agent.json" <<'JSON'
+[{"state":"APPROVED","submitted_at":"2026-07-10T01:12:00Z","user":{"login":"agent"}}]
+JSON
 
 # 시나리오 10: clear 정보가 없는 escalation history → FAIL(AC5)
 git checkout -q fix-ok && git checkout -q -b fix-g4-uncleared
@@ -240,7 +247,8 @@ printf '%s\n' '# clear' > mydocs/feedback/clear-1.md
 write_state_full mydocs/plans/task_m100_1_charter.md implementing \
   '[{"at":"2026-07-10T01:00:00Z","reason":"drift","clearedBy":"human","clearArtifact":"mydocs/feedback/clear-1.md"}]'
 git add .ultra-waterfall/task-1.json mydocs/feedback/clear-1.md && git commit -qm "record external clear"
-G4_EVENTS_FILE="$AUTH/events-human-clear.json" assert_gate PASS fix-g4-cleared "G4 외부 clear 증거(AC5)"
+G4_EVENTS_FILE="$AUTH/events-human-clear.json" G4_REVIEWS_FILE="$AUTH/reviews-human.json" \
+  assert_gate PASS fix-g4-cleared "G4 외부 clear 증거(AC5)"
 
 # 시나리오 12: PR agent와 같은 actor의 self-clear → FAIL(AC5)
 git checkout -q fix-ok && git checkout -q -b fix-g4-self-clear
@@ -249,14 +257,37 @@ printf '%s\n' '# self clear' > mydocs/feedback/clear-agent.md
 write_state_full mydocs/plans/task_m100_1_charter.md implementing \
   '[{"at":"2026-07-10T01:00:00Z","reason":"drift","clearedBy":"agent","clearArtifact":"mydocs/feedback/clear-agent.md"}]'
 git add .ultra-waterfall/task-1.json mydocs/feedback/clear-agent.md && git commit -qm "record self clear"
-G4_EVENTS_FILE="$AUTH/events-agent-clear.json" G4_AGENT_ACTOR=agent assert_gate FAIL fix-g4-self-clear "G4 agent self-clear(AC5)"
+G4_EVENTS_FILE="$AUTH/events-agent-clear.json" G4_REVIEWS_FILE="$AUTH/reviews-agent.json" \
+  G4_AGENT_ACTOR=agent assert_gate FAIL fix-g4-self-clear "G4 agent self-clear(AC5)"
 
 # 시나리오 13: event는 있으나 clear artifact가 결과 tree에 없음 → FAIL(AC5)
 git checkout -q fix-ok && git checkout -q -b fix-g4-missing-artifact
 write_state_full mydocs/plans/task_m100_1_charter.md implementing \
   '[{"at":"2026-07-10T01:00:00Z","reason":"drift","clearedBy":"human","clearArtifact":"mydocs/feedback/missing.md"}]'
 git add .ultra-waterfall/task-1.json && git commit -qm "record missing clear artifact"
-G4_EVENTS_FILE="$AUTH/events-human-clear.json" assert_gate FAIL fix-g4-missing-artifact "G4 clear artifact 누락(AC5)"
+G4_EVENTS_FILE="$AUTH/events-human-clear.json" G4_REVIEWS_FILE="$AUTH/reviews-human.json" \
+  assert_gate FAIL fix-g4-missing-artifact "G4 clear artifact 누락(AC5)"
+
+# 시나리오 14: 하나의 label removal event를 escalation 둘이 재사용 → FAIL(AC5 1:1 대응)
+git checkout -q fix-ok && git checkout -q -b fix-g4-reused-event
+mkdir -p mydocs/feedback
+printf '%s\n' '# clear one' > mydocs/feedback/clear-a.md
+printf '%s\n' '# clear two' > mydocs/feedback/clear-b.md
+write_state_full mydocs/plans/task_m100_1_charter.md implementing \
+  '[{"at":"2026-07-10T01:00:00Z","reason":"drift-a","clearedBy":"human","clearArtifact":"mydocs/feedback/clear-a.md"},{"at":"2026-07-10T01:05:00Z","reason":"drift-b","clearedBy":"human","clearArtifact":"mydocs/feedback/clear-b.md"}]'
+git add .ultra-waterfall/task-1.json mydocs/feedback/clear-a.md mydocs/feedback/clear-b.md && git commit -qm "reuse one clear event twice"
+G4_EVENTS_FILE="$AUTH/events-human-clear.json" G4_REVIEWS_FILE="$AUTH/reviews-human.json" \
+  assert_gate FAIL fix-g4-reused-event "G4 clear event 1:1 대응(AC5)"
+
+# 시나리오 15: label removal + artifact가 있어도 post-escalation approval 없음 → FAIL(설계 G4 predicate)
+git checkout -q fix-ok && git checkout -q -b fix-g4-no-approval
+mkdir -p mydocs/feedback
+printf '%s\n' '# clear without approval' > mydocs/feedback/clear-no-review.md
+write_state_full mydocs/plans/task_m100_1_charter.md implementing \
+  '[{"at":"2026-07-10T01:00:00Z","reason":"drift","clearedBy":"human","clearArtifact":"mydocs/feedback/clear-no-review.md"}]'
+git add .ultra-waterfall/task-1.json mydocs/feedback/clear-no-review.md && git commit -qm "clear without approval"
+G4_EVENTS_FILE="$AUTH/events-human-clear.json" G4_REVIEWS_FILE="" \
+  assert_gate FAIL fix-g4-no-approval "G4 approval 누락(AC5)"
 
 cd "$REPO" || exit 2
 rm -rf "$R" "$OUT" "$AUTH"

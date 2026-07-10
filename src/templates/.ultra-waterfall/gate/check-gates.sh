@@ -17,11 +17,12 @@ GATE=${UW_GATE:-"$UW/bin/uw-gate"}
 fail=0
 note() { echo "[check-gates] $*"; }
 bad()  { echo "[check-gates][FAIL] $*" >&2; fail=1; }
-BASE_WT=""; HEAD_WT=""; G4_TMP=""; G4_TMP_OWNED=0
+BASE_WT=""; HEAD_WT=""; G4_TMP=""; G4_TMP_OWNED=0; G4_REVIEWS_TMP=""; G4_REVIEWS_OWNED=0
 cleanup_worktrees() {
   [ -z "$BASE_WT" ] || git worktree remove -f "$BASE_WT" >/dev/null 2>&1 || true
   [ -z "$HEAD_WT" ] || git worktree remove -f "$HEAD_WT" >/dev/null 2>&1 || true
   [ "$G4_TMP_OWNED" -eq 0 ] || rm -f "$G4_TMP"
+  [ "$G4_REVIEWS_OWNED" -eq 0 ] || rm -f "$G4_REVIEWS_TMP"
   git worktree prune >/dev/null 2>&1 || true
 }
 trap cleanup_worktrees 0 HUP INT TERM
@@ -176,9 +177,13 @@ fi
 
 # --- G4: task별 escalation history ↔ 외부 clear actor/event/artifact 대조 ---
 G4_TMP=${UW_G4_EVENTS_FILE:-}
+G4_REVIEWS_TMP=${UW_G4_REVIEWS_FILE:-}
 g4_require_remote=${UW_G4_REQUIRE_REMOTE:-0}
-issue=$(json_num issue "$ls_f")
-[ -n "$issue" ] || issue=$(json_str issue "$ls_f")
+issue=""
+if [ -n "$ls_f" ]; then
+  issue=$(json_num issue "$ls_f")
+  [ -n "$issue" ] || issue=$(json_str issue "$ls_f")
+fi
 if [ "$g4_require_remote" = 1 ]; then
   if ! command -v gh >/dev/null 2>&1; then
     bad "G4: gh 없음 → 외부 clear 증거를 검증할 수 없음(fail-close)"
@@ -205,8 +210,26 @@ if [ "$g4_require_remote" = 1 ]; then
       events_rc=$?
       set -e
       [ "$events_rc" -eq 0 ] || bad "G4: Issue #$issue event timeline 조회 실패(fail-close)"
+      pr_number=${UW_PR_NUMBER:-}
+      if [ -z "$pr_number" ]; then
+        bad "G4: PR number 없음 → CODEOWNER approval 증거 조회 불가"
+      else
+        G4_REVIEWS_TMP=$(mktemp)
+        G4_REVIEWS_OWNED=1
+        set +e
+        gh api --paginate --slurp "repos/$slug/pulls/$pr_number/reviews?per_page=100" >"$G4_REVIEWS_TMP" 2>/dev/null
+        reviews_rc=$?
+        set -e
+        [ "$reviews_rc" -eq 0 ] || bad "G4: PR #$pr_number review 조회 실패(fail-close)"
+      fi
     fi
   fi
+fi
+
+if [ -z "$G4_REVIEWS_TMP" ]; then
+  G4_REVIEWS_TMP=$(mktemp)
+  G4_REVIEWS_OWNED=1
+  printf '%s\n' '[]' >"$G4_REVIEWS_TMP"
 fi
 
 if [ -z "$G4_TMP" ]; then
@@ -217,16 +240,16 @@ fi
 
 if ! command -v python3 >/dev/null 2>&1; then
   bad "G4: python3 없음 → escalation JSON 증거 검증 불가"
-elif [ -n "$ls_f" ] && [ -f "$G4_TMP" ]; then
+elif [ -n "$ls_f" ] && [ -f "$G4_TMP" ] && [ -f "$G4_REVIEWS_TMP" ]; then
   set +e
-  python3 - "$ls_f" "$G4_TMP" "$ROOT" "${UW_AGENT_ACTOR:-}" <<'PY'
+  python3 - "$ls_f" "$G4_TMP" "$G4_REVIEWS_TMP" "$ROOT" "${UW_AGENT_ACTOR:-}" <<'PY'
 import json
 import os
 import subprocess
 import sys
 from datetime import datetime
 
-state_path, events_path, root, agent_actor = sys.argv[1:]
+state_path, events_path, reviews_path, root, agent_actor = sys.argv[1:]
 
 def fail(message):
     print(f"G4 FAIL: {message}", file=sys.stderr)
@@ -244,16 +267,25 @@ with open(state_path, encoding="utf-8") as f:
     state = json.load(f)
 with open(events_path, encoding="utf-8") as f:
     events = json.load(f)
+with open(reviews_path, encoding="utf-8") as f:
+    reviews = json.load(f)
 
 if events and isinstance(events[0], list):
     events = [event for page in events for event in page]
 if not isinstance(events, list):
     fail("GitHub events payload is not a list")
+if reviews and isinstance(reviews[0], list):
+    reviews = [review for page in reviews for review in page]
+if not isinstance(reviews, list):
+    fail("GitHub reviews payload is not a list")
 
 escalations = state.get("escalations", [])
 if not isinstance(escalations, list):
     fail("loop-state escalations is not a list")
 
+used_events = set()
+used_artifacts = set()
+used_reviews = set()
 for index, escalation in enumerate(escalations, 1):
     if not isinstance(escalation, dict):
         fail(f"escalation[{index}] is not an object")
@@ -268,6 +300,8 @@ for index, escalation in enumerate(escalations, 1):
         fail(f"escalation[{index}] clearArtifact must be under mydocs/feedback/")
     if os.path.isabs(artifact) or ".." in artifact.split("/"):
         fail(f"escalation[{index}] clearArtifact path is unsafe")
+    if artifact in used_artifacts:
+        fail(f"escalation[{index}] reuses clearArtifact: {artifact}")
     tracked = subprocess.run(
         ["git", "-C", root, "cat-file", "-e", f"HEAD:{artifact}"],
         stdout=subprocess.DEVNULL,
@@ -278,7 +312,10 @@ for index, escalation in enumerate(escalations, 1):
         fail(f"escalation[{index}] clearArtifact is not versioned in HEAD: {artifact}")
 
     matched = False
-    for event in events:
+    matched_event = None
+    for event_index, event in enumerate(events):
+        if event_index in used_events:
+            continue
         if not isinstance(event, dict) or event.get("event") != "unlabeled":
             continue
         if (event.get("label") or {}).get("name") != "needs-human":
@@ -288,9 +325,27 @@ for index, escalation in enumerate(escalations, 1):
         if timestamp(event.get("created_at")) < at:
             continue
         matched = True
+        matched_event = event_index
         break
     if not matched:
         fail(f"escalation[{index}] has no matching post-escalation needs-human removal event")
+    matched_review = None
+    for review_index, review in enumerate(reviews):
+        if review_index in used_reviews or not isinstance(review, dict):
+            continue
+        if review.get("state") != "APPROVED":
+            continue
+        if (review.get("user") or {}).get("login") != cleared_by:
+            continue
+        if timestamp(review.get("submitted_at")) < at:
+            continue
+        matched_review = review_index
+        break
+    if matched_review is None:
+        fail(f"escalation[{index}] has no matching post-escalation APPROVED review")
+    used_events.add(matched_event)
+    used_artifacts.add(artifact)
+    used_reviews.add(matched_review)
     print(f"G4 OK: escalation[{index}] cleared by {cleared_by} with {artifact}")
 PY
   g4_rc=$?

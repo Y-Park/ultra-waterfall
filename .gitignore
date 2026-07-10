@@ -21,3 +21,8 @@ hyper-waterfall-clone/
 # python bytecode
 __pycache__/
 *.pyc
+
+# 일회성 적용 회고(메타) — 공개 제외, 로컬 분석용
+/ULTRA_WATERFALL_적용_회고.md
+# 근본 문제 인벤토리(내부 AI 작업 입력) — 공개 제외
+/PROBLEM.md

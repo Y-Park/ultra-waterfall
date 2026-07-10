@@ -33,7 +33,7 @@ description: |
    - **MISS인 채 PR 생성·ready 전환 금지.**
 3. **최종 보고서 작성**: `mydocs/report/task_{milestone}_{N}_report.md` (`mydocs/_templates/final_report.md` 기준). 작업 요약(이슈·charter 링크·Stage 수)/변경 파일·영향/문서 위치 검증/정량 비교/AC별 OK/MISS+근거/단계별 검증 링크/잔여 위험·후속.
 4. **오늘할일 갱신**: `mydocs/orders/{yyyymmdd}.md` #{N} 행 → `완료` + `완료: HH:mm`.
-5. **loop-state 종료 기록**: `.ultra-waterfall/task-{N}.json` → `state: done`, `exit={code: completed, reason: "전 AC OK"}`, `updatedAt`.
+5. **loop-state PR 대기 기록**: `.ultra-waterfall/task-{N}.json` → `state: awaiting_merge`, `exit={code: awaiting_merge, reason: "전 AC OK, 인간 merge 대기", needsHuman:true}`, `updatedAt`. `done`은 아직 기록하지 않는다.
 6. 변경 점검 + 최종 커밋
    ```bash
    git status --short && git diff --check && git log --oneline {BASE_BRANCH}..local/task{N}
@@ -58,7 +58,8 @@ description: |
 - 모든 단계 보고서 + 최종 보고서 존재, 템플릿 필수 섹션 충족
 - charter 전 AC가 **독립 검증으로** OK (MISS 0건), 모든 목표가 OK인 AC로 덮임
 - charter 해시 == baseline
-- `.ultra-waterfall/task-{N}.json`: `state: done`, `exit.code: completed`
+- `.ultra-waterfall/task-{N}.json`: `state: awaiting_merge`, `exit.code: awaiting_merge`이며 PR의 권위 charter가 계속 해소됨
+- `state: done`은 PR 준비 단계 어디에도 기록되지 않음(merge 전 자기인증 금지)
 - `git status --short` 빈 출력
 - PR이 ready(draft 아님), 정확한 base/head, 본문 규칙 충족(검증 4표, SHA 고정 작업문서 링크, raw/상대 링크 없음)
 - 오늘할일 #{N} `완료` + `완료: HH:mm`

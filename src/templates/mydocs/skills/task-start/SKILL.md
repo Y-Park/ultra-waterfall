@@ -19,7 +19,7 @@ description: |
 - charter(`mydocs/plans/task_{milestone}_{N}_charter.md`)가 `LOCKED`
 - **charter 현재 해시 == `loop-state.charterHash` baseline** (변조 없음). 불일치면 시작하지 말고 charter급 에스컬레이션
 - 이슈 번호 N과 마일스톤이 charter·loop-state에 기록됨
-- working tree clean (또는 분리 worktree 사용 결정)
+- working tree에는 인테이크/등록이 만든 **expected intake artifacts**만 존재: 잠긴 charter, `.ultra-waterfall/verify/*.sh`, `.ultra-waterfall/verify/*.mutant.sh`, `.ultra-waterfall/task-{N}.json`. 다른 변경이 하나라도 섞였으면 시작하지 않는다.
 - `gh` CLI 인증 완료
 
 ## 절차
@@ -30,15 +30,19 @@ description: |
    git hash-object mydocs/plans/task_{milestone}_{N}_charter.md   # == loop-state.charterHash 확인
    ```
    - LOCKED 아니거나 해시 불일치면 시작하지 않고 에스컬레이션.
-2. {BASE_BRANCH} 최신화
+2. expected intake artifacts 범위 검사
    ```bash
-   git fetch origin && git checkout {BASE_BRANCH} && git pull --ff-only
+   git status --short
+   # 출력 경로가 charter + verify scripts + task-{N}.json 집합 안인지 전부 확인
    ```
-3. 작업 브랜치 생성 (다른 작업자가 메인 worktree 점유 중이면 분리 worktree)
+   - 범위 밖 변경, 기존 tracked 파일 수정, 다른 task 산출물이 있으면 섞어서 커밋하지 말고 에스컬레이션.
+3. 원격 최신 base에서 작업 브랜치 생성. expected intake artifacts는 새 브랜치로 그대로 운반한다.
    ```bash
-   git checkout -b local/task{N}
-   # 또는: git worktree add ../{repo}-task{N} -b local/task{N} origin/{BASE_BRANCH}
+   git fetch origin
+   git switch -c local/task{N} origin/{BASE_BRANCH}
    ```
+   - 기존 파일과 intake artifact 경로가 충돌해 switch가 실패하면 덮어쓰지 말고 에스컬레이션.
+   - 이미 분리 worktree가 필요하면 인테이크 전에 결정한다. 미커밋 intake artifact를 임시 복사해 다른 worktree로 우회하지 않는다.
 4. 오늘할일 갱신: `mydocs/orders/{yyyymmdd}.md`에 행 추가 (`mydocs/_templates/orders.md` 형식)
    - `| #{N} | {charter 제목} | 진행중 | M{milestone}, 구현계획서 작성·LOOP 진입 |`
 5. 구현계획서 생성: `mydocs/plans/task_{milestone}_{N}_impl.md` (`mydocs/_templates/task_impl_plan.md` 기준)
@@ -53,11 +57,14 @@ description: |
    - `plannedStages`: 구현계획서 Stage 수(예측·관찰용)
    - `guards`: charter 값(`maxStages`/`maxPerStage`/`maxSelfCorrectionTotal`)
    - `state: implementing`, `currentStage: 1`, `updatedAt`
-8. 단일 커밋
+8. 구현 전 **계약 baseline 단일 커밋**
    ```bash
-   git add mydocs/plans/task_{milestone}_{N}_impl.md mydocs/orders/{yyyymmdd}.md .ultra-waterfall/task-{N}.json
-   git commit -m "Task #{N}: 구현계획서 작성과 오늘할일 갱신"
+   git add mydocs/plans/task_{milestone}_{N}_charter.md \
+     mydocs/plans/task_{milestone}_{N}_impl.md mydocs/orders/{yyyymmdd}.md \
+     .ultra-waterfall/verify .ultra-waterfall/task-{N}.json
+   git commit -m "Task #{N}: 계약 baseline과 구현계획서 확정"
    ```
+   - 이 커밋은 product 구현 전 상태 + frozen 검증을 함께 가진다. CI는 task loop-state가 최초 추가된 commit을 red-first baseline으로 도출한다.
 9. 관찰용 draft PR 게시 (비동기 감독 창)
    ```bash
    git push origin local/task{N}:publish/task{N}
@@ -69,10 +76,11 @@ description: |
 
 ## 검증
 
-- `git log --oneline -1`이 `Task #{N}: 구현계획서 작성과 오늘할일 갱신`
+- `git log --oneline -1`이 `Task #{N}: 계약 baseline과 구현계획서 확정`
 - `mydocs/orders/{yyyymmdd}.md`에 #{N} 행 존재
 - `mydocs/plans/task_{milestone}_{N}_impl.md`가 필수 섹션 + AC→Stage 커버리지 표(모든 AC 매핑)를 채우고 charter 역링크
 - `.ultra-waterfall/task-{N}.json`: `branch`/`implPlan`/`plannedStages`/`guards` 채움, `state: implementing`, `currentStage: 1`
+- 최초 커밋에 charter·verify scripts·loop-state·구현계획서·오늘할일이 모두 포함되고 product 구현은 없음(계약 baseline)
 - draft PR이 `publish/task{N}` head로 생성됨
 
 ## 절대 하지 말 것

@@ -108,6 +108,7 @@ description: |
     - 인테이크가 만든 잠정 charter(`task_{milestone}_{slug}_charter.md`)를 `git mv`로 `task_{milestone}_{N}_charter.md`로 rename한다. charter 본문 해시는 rename으로 바뀌지 않으므로 baseline 유지(필요 시 재계산해 동일 확인).
     - `.ultra-waterfall/task-{N}.json`을 생성한다(스키마는 `ultra_loop_guide.md`): `issue`=N, `milestone`, `charter`=새 경로, `charterHash`=charter baseline, `guards`(charter 값), `state: planning`, `exit.code: running`, `updatedAt`. 누적 카운터(`totalStages`/`selfCorrectionTotal`/`currentStageCorrections`)는 0.
     - 이슈 본문에 charter 역링크(새 경로)를 반영한다(charter↔Issue 일관성; charter가 단일 진실 원천, Issue는 파생물).
+    - rename된 charter·인테이크가 emit한 `.ultra-waterfall/verify/`·새 loop-state는 **expected intake artifacts**로 미커밋 유지한다. `task-start`가 구현계획서·오늘할일과 함께 계약 baseline으로 커밋하며, 이 사이 다른 변경을 섞지 않는다.
     - 생성된 이슈 번호·URL을 보고하고 [`task-start`](../task-start/SKILL.md)로 자동 진행한다.
 
 ## 검증

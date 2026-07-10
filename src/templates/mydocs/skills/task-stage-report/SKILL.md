@@ -25,34 +25,45 @@ description: |
 
 1. **가드 검사(진입 전)**: `.ultra-waterfall/task-{N}.json`에서 `totalStages < guards.maxStages`, `selfCorrectionTotal < guards.maxSelfCorrectionTotal` 확인. 도달 시 진행하지 말고 에스컬레이션(아래 8).
 2. **구현**: 이 Stage가 담당하는 AC(커버리지 표)에 해당하는 작업을 구현한다. `state`를 `implementing`으로 둔다.
-3. **검증 명령 실행(charter 고정)**: 담당 AC의 **charter 검증 명령을 그대로** 실행한다(약화·변경 금지). 원문 출력을 로그로 보존·커밋: `mydocs/working/task_{milestone}_{N}_stage{S}.log`. `state: verifying`.
-4. **독립 검증 판정(OK/MISS — 적대적 반증)**: 구현 대화이력과 분리된 독립 검증으로 판정한다(`ultra_loop_guide.md` "자동 검증 게이트").
-   - 별도 컨텍스트(서브에이전트 또는 fresh-eyes)에 **charter(AC·검증 기준) + 변경 diff**만 주고 "charter를 충족하지 *못하는* 반례를 찾아라"(refute-first). **깨끗한 체크아웃에서 검증자가 직접** 검증 명령을 재실행한다(구현자 로그 불신; 보고≠재실행이면 MISS).
+3. **검증 candidate snapshot 생성**: 계획된 구현 경로만 index에 올리고, branch를 움직이지 않는 임시 commit을 만든다. 이 commit SHA가 검증자가 받은 구현 후보의 정확한 식별자다.
+   ```bash
+   git add {이 Stage의 구현 파일만}
+   CANDIDATE_TREE=$(git write-tree)
+   CANDIDATE_COMMIT=$(printf 'Task #%s Stage %s verification candidate\n' "{N}" "{S}" | git commit-tree "$CANDIDATE_TREE" -p HEAD)
+   VERIFY_WT=$(mktemp -d) && rmdir "$VERIFY_WT"
+   git worktree add --detach "$VERIFY_WT" "$CANDIDATE_COMMIT"
+   ```
+   - `git status --short`로 index에 계획 밖 파일이 없는지 먼저 확인한다. candidate는 임시 객체이며 `local/task{N}` ref를 이동하지 않는다.
+4. **검증 명령 실행(charter 고정)**: 구현자가 담당 AC의 **charter 검증 명령을 그대로** 실행한다(약화·변경 금지). 원문 출력과 `CANDIDATE_COMMIT`을 로그로 보존·커밋: `mydocs/working/task_{milestone}_{N}_stage{S}.log`. `state: verifying`.
+5. **독립 검증 판정(OK/MISS — 적대적 반증)**: 구현 대화이력과 분리된 독립 검증으로 판정한다(`ultra_loop_guide.md` "자동 검증 게이트").
+   - 별도 컨텍스트(서브에이전트 또는 fresh-eyes)에 **charter(AC·검증 기준) + `git diff HEAD "$CANDIDATE_COMMIT"` + candidate SHA**만 주고 "charter를 충족하지 *못하는* 반례를 찾아라"(refute-first). 검증자는 **`VERIFY_WT`의 깨끗한 candidate checkout에서 직접** 검증 명령을 재실행한다(구현자 로그 불신; 보고≠재실행이면 MISS).
    - **독립 적대 프로브(필수)**: 동결 명령 재실행에 더해, 검증자가 AC 실패공간을 자기 입력으로 추가 공격(경계·다항목·반례). 동결 명령은 통과하나 프로브가 위반을 찾으면 = teeth 부족 → MISS + charter급 에스컬레이션.
    - 의심이 남거나 구현자 기대와 다르면 **OK 아닌 MISS로 강등**.
-5. **자기수정(MISS 시)**: 같은 Stage에서 `진단 → 수정 → 재검증(3번 명령 그대로)`. `state: correcting`.
+   - 판정 후 `git worktree remove -f "$VERIFY_WT" && git worktree prune`. MISS면 `git reset`으로 candidate index를 내린 뒤 수정하고 3부터 새 candidate를 만든다.
+6. **자기수정(MISS 시)**: 같은 Stage에서 `진단 → 수정 → 재검증(4번 명령 그대로)`. `state: correcting`.
    - 회차마다 `selfCorrectionTotal += 1`, `currentStageCorrections += 1` 기록.
    - **회차 진입 전** `currentStageCorrections < N(maxPerStage)` 및 `selfCorrectionTotal < maxSelfCorrectionTotal` 확인. 도달 시 8(에스컬레이션).
    - 회차별 시도·재검증 출력·결과를 보고서에 남긴다.
-6. **드리프트 점검**: 누적 변경이 charter 목표·범위와 정렬되는지 확인. charter 비목표/제외/제약에 닿았으면 charter급 에스컬레이션.
-7. **단계 보고서 작성**: `mydocs/working/task_{milestone}_{N}_stage{S}.md` (`mydocs/_templates/stage_report.md` 기준). AC별 OK/MISS + 로그 경로#해시 + 자기수정 누적/가드 + 드리프트 결과 포함.
-8. **에스컬레이션(필요 시)**: 위 조건(자기수정 한도/가드 도달/charter급/해시 불일치) 발생 시 — 미커밋 변경은 WIP 커밋 또는 stash로 보존(위치·SHA를 `loop-state.exit`에 기록), GitHub Issue에 `needs-human` 라벨+사유 코멘트, `publish/task{N}` push, `loop-state.exit={code:escalated, reason, needsHuman:true}`, `state: escalated`. 정지(인간 무응답 시 재개 금지).
-9. **변경 점검 + 커밋(OK 시)**
+7. **드리프트 점검**: 누적 변경이 charter 목표·범위와 정렬되는지 확인. charter 비목표/제외/제약에 닿았으면 charter급 에스컬레이션.
+8. **단계 보고서 작성**: `mydocs/working/task_{milestone}_{N}_stage{S}.md` (`mydocs/_templates/stage_report.md` 기준). candidate SHA + AC별 OK/MISS + 로그 경로#해시 + 자기수정 누적/가드 + 드리프트 결과 포함.
+9. **에스컬레이션(필요 시)**: 위 조건(자기수정 한도/가드 도달/charter급/해시 불일치) 발생 시 — 미커밋 변경은 WIP 커밋 또는 stash로 보존(위치·SHA를 `loop-state.exit`에 기록), GitHub Issue에 `needs-human` 라벨+사유 코멘트, `publish/task{N}` push, `loop-state.exit={code:escalated, reason, needsHuman:true}`, `state: escalated`. 정지(인간 무응답 시 재개 금지).
+10. **변경 점검 + 커밋(OK 시)**
    ```bash
    git status --short && git diff --check
    git add {단계 산출 파일들} mydocs/working/task_{milestone}_{N}_stage{S}.md mydocs/working/task_{milestone}_{N}_stage{S}.log .ultra-waterfall/task-{N}.json
    git commit -m "Task #{N} Stage {S}: {핵심 내용 요약}"
    ```
    - 하위 단계: `Task #{N} [Stage {S.M}]: 내용`. 한 단계는 한 커밋(산출물+보고서+로그+loop-state 묶음).
-10. **loop-state 갱신(커밋에 포함)**: `currentStage`, `totalStages += 1`, `selfCorrectionTotal`(누적), `currentStageCorrections`(다음 Stage에서 0 리셋), `lastVerification`(OK/MISS·by:independent·로그#해시), `history[]`에 `{stage,result,corrections,at}` append, `state`, `updatedAt`.
-11. **관찰성 push**: `git push origin local/task{N}:publish/task{N}` (선택: Issue/PR에 `Stage {S}/{plannedStages}, 남은 AC {j}` 한 줄 코멘트).
-12. OK면 다음 Stage 자동 진입(`task-stage-report` 재호출). 모든 AC가 충족되면 [`task-final-report`](../task-final-report/SKILL.md)로 종료 절차.
+11. **loop-state 갱신(커밋에 포함)**: `currentStage`, `totalStages += 1`, `selfCorrectionTotal`(누적), `currentStageCorrections`(다음 Stage에서 0 리셋), `lastVerification`(OK/MISS·by:independent·candidate SHA·로그#해시), `history[]`에 `{stage,result,corrections,at}` append, `state`, `updatedAt`.
+12. **관찰성 push**: `git push origin local/task{N}:publish/task{N}` (선택: Issue/PR에 `Stage {S}/{plannedStages}, 남은 AC {j}` 한 줄 코멘트).
+13. OK면 다음 Stage 자동 진입(`task-stage-report` 재호출). 모든 AC가 충족되면 [`task-final-report`](../task-final-report/SKILL.md)로 종료 절차.
 
 ## 검증
 
 - `git log --oneline -1`이 단계 커밋 표준 형식
 - `mydocs/working/task_{milestone}_{N}_stage{S}.md`와 `..._stage{S}.log` 존재
 - 단계 보고서가 AC별 OK/MISS + 독립 검증 표시 + 드리프트 결과를 채움
+- 단계 보고서·로그가 검증한 candidate SHA를 기록하고, 검증 checkout의 product 경로가 최종 Stage commit과 동일
 - 검증 명령이 charter 검증 기준과 동일(약화 안 됨)
 - `.ultra-waterfall/task-{N}.json`: `totalStages` 증분, `selfCorrectionTotal` 누적 보존, `lastVerification`/`history`/`state`/`updatedAt` 갱신, 가드 상한 미만
 - 커밋에 loop-state(.ultra-waterfall/task-{N}.json) 포함(궤적 보존)

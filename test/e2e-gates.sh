@@ -24,6 +24,7 @@ assert_gate_from() {
   git show "$base:.ultra-waterfall/bin/uw-gate" >"$AUTH/uw-gate"
   chmod +x "$AUTH/check-gates.sh" "$AUTH/uw-gate"
   UW_GATE="$AUTH/uw-gate" UW_G4_REQUIRE_REMOTE=0 \
+    UW_G4_EVENTS_FILE="${G4_EVENTS_FILE:-}" UW_AGENT_ACTOR="${G4_AGENT_ACTOR:-agent}" \
     sh "$AUTH/check-gates.sh" "$base" "$head" >"$OUT" 2>&1; rc=$?
   if [ "$rc" -eq 0 ]; then got=PASS; else got=FAIL; fi
   if [ "$got" = "$want" ]; then
@@ -78,10 +79,13 @@ allow mydocs/**
 ac5
 <!-- uw:verify-acs:end -->
 MD
-write_state() { # $1=charter path
+write_state_full() { # $1=charter path $2=state $3=escalations JSON
+  state=$2 escalations=$3
   ch=$(git hash-object "$1")
-  printf '{"charter":"%s","charterHash":"sha256:%s","state":"implementing"}\n' "$1" "$ch" > .ultra-waterfall/task-1.json
+  printf '{"issue":1,"charter":"%s","charterHash":"sha256:%s","state":"%s","escalations":%s}\n' \
+    "$1" "$ch" "$state" "$escalations" > .ultra-waterfall/task-1.json
 }
+write_state() { write_state_full "$1" implementing '[]'; }
 write_state mydocs/plans/task_m100_1_charter.md
 
 # G5 실행형 검증(ac5): frozen + mutant
@@ -213,6 +217,46 @@ printf '%s\n' '#!/bin/sh' 'exit 0' > .ultra-waterfall/verify/ac5.sh
 chmod +x .ultra-waterfall/verify/ac5.sh
 git add .ultra-waterfall/verify/ac5.sh && git commit -qm "weaken frozen verify"
 assert_gate FAIL fix-verify-drift "frozen verify drift(AC6)"
+
+# G4 event fixtures: 실제 CI에서는 GitHub issue events API에서 같은 shape을 받는다.
+cat >"$AUTH/events-human-clear.json" <<'JSON'
+[{"event":"unlabeled","created_at":"2026-07-10T01:10:00Z","actor":{"login":"human"},"label":{"name":"needs-human"}}]
+JSON
+cat >"$AUTH/events-agent-clear.json" <<'JSON'
+[{"event":"unlabeled","created_at":"2026-07-10T01:10:00Z","actor":{"login":"agent"},"label":{"name":"needs-human"}}]
+JSON
+
+# 시나리오 10: clear 정보가 없는 escalation history → FAIL(AC5)
+git checkout -q fix-ok && git checkout -q -b fix-g4-uncleared
+write_state_full mydocs/plans/task_m100_1_charter.md implementing \
+  '[{"at":"2026-07-10T01:00:00Z","reason":"drift","clearedBy":null,"clearArtifact":null}]'
+git add .ultra-waterfall/task-1.json && git commit -qm "record uncleared escalation"
+G4_EVENTS_FILE="" assert_gate FAIL fix-g4-uncleared "G4 미클리어 history(AC5)"
+
+# 시나리오 11: 외부 actor의 label clear event + versioned artifact → PASS(AC5)
+git checkout -q fix-ok && git checkout -q -b fix-g4-cleared
+mkdir -p mydocs/feedback
+printf '%s\n' '# clear' > mydocs/feedback/clear-1.md
+write_state_full mydocs/plans/task_m100_1_charter.md implementing \
+  '[{"at":"2026-07-10T01:00:00Z","reason":"drift","clearedBy":"human","clearArtifact":"mydocs/feedback/clear-1.md"}]'
+git add .ultra-waterfall/task-1.json mydocs/feedback/clear-1.md && git commit -qm "record external clear"
+G4_EVENTS_FILE="$AUTH/events-human-clear.json" assert_gate PASS fix-g4-cleared "G4 외부 clear 증거(AC5)"
+
+# 시나리오 12: PR agent와 같은 actor의 self-clear → FAIL(AC5)
+git checkout -q fix-ok && git checkout -q -b fix-g4-self-clear
+mkdir -p mydocs/feedback
+printf '%s\n' '# self clear' > mydocs/feedback/clear-agent.md
+write_state_full mydocs/plans/task_m100_1_charter.md implementing \
+  '[{"at":"2026-07-10T01:00:00Z","reason":"drift","clearedBy":"agent","clearArtifact":"mydocs/feedback/clear-agent.md"}]'
+git add .ultra-waterfall/task-1.json mydocs/feedback/clear-agent.md && git commit -qm "record self clear"
+G4_EVENTS_FILE="$AUTH/events-agent-clear.json" G4_AGENT_ACTOR=agent assert_gate FAIL fix-g4-self-clear "G4 agent self-clear(AC5)"
+
+# 시나리오 13: event는 있으나 clear artifact가 결과 tree에 없음 → FAIL(AC5)
+git checkout -q fix-ok && git checkout -q -b fix-g4-missing-artifact
+write_state_full mydocs/plans/task_m100_1_charter.md implementing \
+  '[{"at":"2026-07-10T01:00:00Z","reason":"drift","clearedBy":"human","clearArtifact":"mydocs/feedback/missing.md"}]'
+git add .ultra-waterfall/task-1.json && git commit -qm "record missing clear artifact"
+G4_EVENTS_FILE="$AUTH/events-human-clear.json" assert_gate FAIL fix-g4-missing-artifact "G4 clear artifact 누락(AC5)"
 
 cd "$REPO" || exit 2
 rm -rf "$R" "$OUT" "$AUTH"

@@ -17,10 +17,11 @@ GATE=${UW_GATE:-"$UW/bin/uw-gate"}
 fail=0
 note() { echo "[check-gates] $*"; }
 bad()  { echo "[check-gates][FAIL] $*" >&2; fail=1; }
-BASE_WT=""; HEAD_WT=""
+BASE_WT=""; HEAD_WT=""; G4_TMP=""; G4_TMP_OWNED=0
 cleanup_worktrees() {
   [ -z "$BASE_WT" ] || git worktree remove -f "$BASE_WT" >/dev/null 2>&1 || true
   [ -z "$HEAD_WT" ] || git worktree remove -f "$HEAD_WT" >/dev/null 2>&1 || true
+  [ "$G4_TMP_OWNED" -eq 0 ] || rm -f "$G4_TMP"
   git worktree prune >/dev/null 2>&1 || true
 }
 trap cleanup_worktrees 0 HUP INT TERM
@@ -43,6 +44,7 @@ fi
 
 # --- PR 대상 loop-state/charter 결정론적 해소(D): historical task와 현재 PR을 분리 ---
 json_str() { sed -n "s/.*\"$1\"[[:space:]]*:[[:space:]]*\"\([^\"]*\)\".*/\1/p" "$2" | head -1; }
+json_num() { sed -n "s/.*\"$1\"[[:space:]]*:[[:space:]]*\([0-9][0-9]*\).*/\1/p" "$2" | head -1; }
 changed_states=$(printf '%s\n' "$changed" | grep -E '^\.ultra-waterfall/task-[0-9]+\.json$' || true)
 state_count=$(printf '%s\n' "$changed_states" | sed '/^$/d' | wc -l | tr -d ' ')
 state_rel=""
@@ -172,15 +174,130 @@ if [ -n "$active_charter" ] && [ -f "$ROOT/$active_charter" ]; then
   fi
 fi
 
-# --- G4: 미클리어 에스컬레이션 / open needs-human 라벨 ---
-if command -v gh >/dev/null 2>&1; then
-  slug=$(gh repo view --json nameWithOwner -q .nameWithOwner 2>/dev/null || true)
-  if [ -n "$slug" ]; then
-    open_nh=$(gh issue list --repo "$slug" --label needs-human --state open --json number -q 'length' 2>/dev/null || echo 0)
-    [ "${open_nh:-0}" = 0 ] || bad "G4: open 'needs-human' 이슈 $open_nh건 → 미클리어 에스컬레이션 상태로 merge 불가(외부 주체가 라벨 제거+클리어 산출물 후 통과)"
+# --- G4: task별 escalation history ↔ 외부 clear actor/event/artifact 대조 ---
+G4_TMP=${UW_G4_EVENTS_FILE:-}
+g4_require_remote=${UW_G4_REQUIRE_REMOTE:-0}
+issue=$(json_num issue "$ls_f")
+[ -n "$issue" ] || issue=$(json_str issue "$ls_f")
+if [ "$g4_require_remote" = 1 ]; then
+  if ! command -v gh >/dev/null 2>&1; then
+    bad "G4: gh 없음 → 외부 clear 증거를 검증할 수 없음(fail-close)"
+  elif [ -z "$issue" ]; then
+    bad "G4: loop-state issue 번호 없음"
+  else
+    slug=$(gh repo view --json nameWithOwner -q .nameWithOwner 2>/dev/null || true)
+    if [ -z "$slug" ]; then
+      bad "G4: GitHub repository 조회 실패(fail-close)"
+    else
+      set +e
+      labels=$(gh issue view "$issue" --repo "$slug" --json labels --jq '.labels[].name' 2>/dev/null)
+      labels_rc=$?
+      set -e
+      if [ "$labels_rc" -ne 0 ]; then
+        bad "G4: Issue #$issue label 조회 실패(fail-close)"
+      elif printf '%s\n' "$labels" | grep -qx 'needs-human'; then
+        bad "G4: Issue #$issue needs-human 라벨이 열려 있음"
+      fi
+      G4_TMP=$(mktemp)
+      G4_TMP_OWNED=1
+      set +e
+      gh api --paginate --slurp "repos/$slug/issues/$issue/events?per_page=100" >"$G4_TMP" 2>/dev/null
+      events_rc=$?
+      set -e
+      [ "$events_rc" -eq 0 ] || bad "G4: Issue #$issue event timeline 조회 실패(fail-close)"
+    fi
   fi
+fi
+
+if [ -z "$G4_TMP" ]; then
+  G4_TMP=$(mktemp)
+  G4_TMP_OWNED=1
+  printf '%s\n' '[]' >"$G4_TMP"
+fi
+
+if ! command -v python3 >/dev/null 2>&1; then
+  bad "G4: python3 없음 → escalation JSON 증거 검증 불가"
+elif [ -n "$ls_f" ] && [ -f "$G4_TMP" ]; then
+  set +e
+  python3 - "$ls_f" "$G4_TMP" "$ROOT" "${UW_AGENT_ACTOR:-}" <<'PY'
+import json
+import os
+import subprocess
+import sys
+from datetime import datetime
+
+state_path, events_path, root, agent_actor = sys.argv[1:]
+
+def fail(message):
+    print(f"G4 FAIL: {message}", file=sys.stderr)
+    raise SystemExit(1)
+
+def timestamp(value):
+    if not isinstance(value, str) or not value:
+        fail("escalation/event timestamp missing")
+    try:
+        return datetime.fromisoformat(value.replace("Z", "+00:00"))
+    except ValueError:
+        fail(f"invalid timestamp: {value}")
+
+with open(state_path, encoding="utf-8") as f:
+    state = json.load(f)
+with open(events_path, encoding="utf-8") as f:
+    events = json.load(f)
+
+if events and isinstance(events[0], list):
+    events = [event for page in events for event in page]
+if not isinstance(events, list):
+    fail("GitHub events payload is not a list")
+
+escalations = state.get("escalations", [])
+if not isinstance(escalations, list):
+    fail("loop-state escalations is not a list")
+
+for index, escalation in enumerate(escalations, 1):
+    if not isinstance(escalation, dict):
+        fail(f"escalation[{index}] is not an object")
+    at = timestamp(escalation.get("at"))
+    cleared_by = escalation.get("clearedBy")
+    artifact = escalation.get("clearArtifact")
+    if not isinstance(cleared_by, str) or not cleared_by:
+        fail(f"escalation[{index}] has no external clearedBy")
+    if agent_actor and cleared_by == agent_actor:
+        fail(f"escalation[{index}] was self-cleared by PR agent {agent_actor}")
+    if not isinstance(artifact, str) or not artifact.startswith("mydocs/feedback/"):
+        fail(f"escalation[{index}] clearArtifact must be under mydocs/feedback/")
+    if os.path.isabs(artifact) or ".." in artifact.split("/"):
+        fail(f"escalation[{index}] clearArtifact path is unsafe")
+    tracked = subprocess.run(
+        ["git", "-C", root, "cat-file", "-e", f"HEAD:{artifact}"],
+        stdout=subprocess.DEVNULL,
+        stderr=subprocess.DEVNULL,
+        check=False,
+    )
+    if tracked.returncode != 0:
+        fail(f"escalation[{index}] clearArtifact is not versioned in HEAD: {artifact}")
+
+    matched = False
+    for event in events:
+        if not isinstance(event, dict) or event.get("event") != "unlabeled":
+            continue
+        if (event.get("label") or {}).get("name") != "needs-human":
+            continue
+        if (event.get("actor") or {}).get("login") != cleared_by:
+            continue
+        if timestamp(event.get("created_at")) < at:
+            continue
+        matched = True
+        break
+    if not matched:
+        fail(f"escalation[{index}] has no matching post-escalation needs-human removal event")
+    print(f"G4 OK: escalation[{index}] cleared by {cleared_by} with {artifact}")
+PY
+  g4_rc=$?
+  set -e
+  if [ "$g4_rc" -eq 0 ]; then note "G4 escalation history/actor/artifact OK"; else bad "G4 escalation clear 증거 불충분"; fi
 else
-  note "G4: gh 없음 → 라벨 검사 생략(CI 러너에 gh 필요)"
+  bad "G4: loop-state 또는 event payload 없음"
 fi
 
 if [ "$fail" = 0 ]; then note "ALL GATES PASS"; exit 0; else echo "[check-gates] 게이트 실패 — merge 차단" >&2; exit 1; fi

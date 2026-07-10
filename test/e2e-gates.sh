@@ -14,10 +14,17 @@ TPL="$REPO/src/templates/.ultra-waterfall"
 
 pass=0; fail=0
 OUT=$(mktemp)   # 작업트리 밖(임시 repo 안에 두면 git checkout과 충돌)
-# assert_gate <expected: PASS|FAIL> <head-ref> <label>
-assert_gate() {
-  want=$1; head=$2; label=$3
-  sh "$R/.ultra-waterfall/gate/check-gates.sh" main "$head" >"$OUT" 2>&1; rc=$?
+AUTH=$(mktemp -d)
+
+# assert_gate_from <expected: PASS|FAIL> <base-ref> <head-ref> <label>
+# workflow와 동일하게 권위 gate와 helper를 base ref에서 추출해 실행한다.
+assert_gate_from() {
+  want=$1; base=$2; head=$3; label=$4
+  git show "$base:.ultra-waterfall/gate/check-gates.sh" >"$AUTH/check-gates.sh"
+  git show "$base:.ultra-waterfall/bin/uw-gate" >"$AUTH/uw-gate"
+  chmod +x "$AUTH/check-gates.sh" "$AUTH/uw-gate"
+  UW_GATE="$AUTH/uw-gate" UW_G4_REQUIRE_REMOTE=0 \
+    sh "$AUTH/check-gates.sh" "$base" "$head" >"$OUT" 2>&1; rc=$?
   if [ "$rc" -eq 0 ]; then got=PASS; else got=FAIL; fi
   if [ "$got" = "$want" ]; then
     echo "ok   - [$label] expected=$want got=$got"
@@ -28,6 +35,17 @@ assert_gate() {
     fail=$((fail+1))
   fi
 }
+
+assert_gate() { assert_gate_from "$1" main "$2" "$3"; }
+
+WORKFLOW="$REPO/src/templates/.github/workflows/uw-gate.yml"
+if grep -q 'UW_GATE: /tmp/uw-gate' "$WORKFLOW" && grep -q 'chmod +x /tmp/check-gates.sh /tmp/uw-gate' "$WORKFLOW"; then
+  echo "ok   - [workflow base helper 주입(AC4)]"
+  pass=$((pass+1))
+else
+  echo "FAIL - [workflow base helper 주입(AC4)]" >&2
+  fail=$((fail+1))
+fi
 
 R=$(mktemp -d)
 cd "$R" || exit 2
@@ -162,8 +180,42 @@ write_state mydocs/plans/task_m100_1_charter.md
 git add -A; git commit -qm "loosen fence to global-only"
 assert_gate FAIL fix-degenfence "degenerate fence(F)"
 
+# 시나리오 6: head helper 자체를 무조건 PASS로 바꿔도 base helper가 protected 변경 차단 → FAIL(AC4)
+git checkout -q fix-ok && git checkout -q -b fix-head-helper
+printf '%s\n' '#!/bin/sh' 'exit 0' > .ultra-waterfall/bin/uw-gate
+chmod +x .ultra-waterfall/bin/uw-gate
+git add .ultra-waterfall/bin/uw-gate && git commit -qm "tamper head helper"
+assert_gate FAIL fix-head-helper "head helper 변조(AC4)"
+
+# 시나리오 7: PR 준비 전에 done 자기보고 → FAIL, awaiting_merge는 권위 대상 유지 → PASS(AC3)
+git checkout -q fix-ok && git checkout -q -b fix-premature-done
+sed 's/"state":"implementing"/"state":"done"/' .ultra-waterfall/task-1.json > state.tmp && mv state.tmp .ultra-waterfall/task-1.json
+git add .ultra-waterfall/task-1.json && git commit -qm "premature done"
+assert_gate FAIL fix-premature-done "pre-merge done 자기보고(AC3)"
+
+git checkout -q fix-ok && git checkout -q -b fix-awaiting-merge
+sed 's/"state":"implementing"/"state":"awaiting_merge"/' .ultra-waterfall/task-1.json > state.tmp && mv state.tmp .ultra-waterfall/task-1.json
+git add .ultra-waterfall/task-1.json && git commit -qm "awaiting human merge"
+assert_gate PASS fix-awaiting-merge "awaiting_merge 권위 유지(AC3)"
+
+# 시나리오 8: baseline에서 frozen 검증이 이미 PASS면 red-first 부재 → FAIL(AC6)
+git checkout -q main && git checkout -q -b baseline-green
+printf '%s\n' "$FIXED" > src/todo.py
+git commit -qam "bad baseline already green"
+git checkout -q -b fix-no-red-first
+printf '%s\n' note > src/note.txt
+git add src/note.txt && git commit -qm "change without red-first baseline"
+assert_gate_from FAIL baseline-green fix-no-red-first "red-first 부재(AC6)"
+
+# 시나리오 9: intake 이후 frozen verify script 변경 → FAIL(AC6)
+git checkout -q fix-ok && git checkout -q -b fix-verify-drift
+printf '%s\n' '#!/bin/sh' 'exit 0' > .ultra-waterfall/verify/ac5.sh
+chmod +x .ultra-waterfall/verify/ac5.sh
+git add .ultra-waterfall/verify/ac5.sh && git commit -qm "weaken frozen verify"
+assert_gate FAIL fix-verify-drift "frozen verify drift(AC6)"
+
 cd "$REPO" || exit 2
-rm -rf "$R" "$OUT"
+rm -rf "$R" "$OUT" "$AUTH"
 echo ""
 echo "e2e-gates: $pass passed, $fail failed"
 [ "$fail" -eq 0 ] || exit 1

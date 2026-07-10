@@ -32,6 +32,9 @@ jobs:
       - name: Run authoritative gate from BASE ref (head가 게이트 로직을 못 바꾸게)
         env:
           GH_TOKEN: ${{ github.token }}
+          UW_GATE: /tmp/uw-gate
+          UW_G4_REQUIRE_REMOTE: "1"
+          UW_AGENT_ACTOR: ${{ github.event.pull_request.user.login }}
         run: |
           set -eu
           base="${{ steps.refs.outputs.base }}"
@@ -40,5 +43,5 @@ jobs:
           git show "$base:.ultra-waterfall/gate/check-gates.sh" > /tmp/check-gates.sh 2>/dev/null \
             || { echo "::error::base ref에 check-gates.sh 없음 — 첫 도입이면 base에 게이트를 먼저 병합하라"; exit 1; }
           git show "$base:.ultra-waterfall/bin/uw-gate" > /tmp/uw-gate 2>/dev/null || true
-          chmod +x /tmp/check-gates.sh
+          chmod +x /tmp/check-gates.sh /tmp/uw-gate
           sh /tmp/check-gates.sh "$base" "$head"

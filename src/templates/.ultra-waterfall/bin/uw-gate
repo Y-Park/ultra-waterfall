@@ -52,19 +52,21 @@ json_str() { sed -n "s/.*\"$1\"[[:space:]]*:[[:space:]]*\"\([^\"]*\)\".*/\1/p" "
 
 # charter 경로 해소(결정론적): --charter 인자 > 활성 state loop-state > 임의 단일.
 # mtime(ls -t) 금지 — CI fresh checkout는 mtime이 비결정이라 다중 task에서 엉뚱한 charter를 고른다.
-# 활성 state(implementing/verifying/correcting/planning/running) 우선 + 파일명 LC_ALL=C 정렬을 tiebreak로.
+# 실행 state(implementing/verifying/correcting/planning/running) 우선, awaiting_merge는 차선.
+# 이 우선순위로 main에 남은 과거 awaiting_merge가 새 실행 task를 가리지 않는다.
 resolve_charter() {
   if [ -n "${CHARTER:-}" ]; then echo "$CHARTER"; return 0; fi
   ls "$UW"/task-*.json >/dev/null 2>&1 || return 1
-  active=""; any=""
+  active=""; awaiting=""; any=""
   for f in $(ls "$UW"/task-*.json 2>/dev/null | LC_ALL=C sort); do
     c=$(json_str charter "$f"); [ -n "$c" ] || continue
     [ -n "$any" ] || any=$c
     case "$(json_str state "$f")" in
       implementing|verifying|correcting|planning|running) [ -n "$active" ] || active=$c ;;
+      awaiting_merge) [ -n "$awaiting" ] || awaiting=$c ;;
     esac
   done
-  if [ -n "$active" ]; then echo "$active"; elif [ -n "$any" ]; then echo "$any"; else return 1; fi
+  if [ -n "$active" ]; then echo "$active"; elif [ -n "$awaiting" ]; then echo "$awaiting"; elif [ -n "$any" ]; then echo "$any"; else return 1; fi
 }
 
 # scope-fence lint(F): charter의 fence가 게이트를 무력화하는 degenerate 형태인지 거부.

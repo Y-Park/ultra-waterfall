@@ -15,6 +15,7 @@
 #   uw-gate verify-run <ac-id> --log <path> -- <cmd...>
 #   uw-gate halt "<reason>"        # .ultra-waterfall/HALT 세팅(마찰)
 #   uw-gate halt-check             # HALT 활성이면 비-0
+#   uw-gate merge-fact [json-file] # MERGED + non-null mergeCommit 외에는 비-0
 #   uw-gate doctor [--issue <N>]   # trust-root(branch protection/required check/토큰) 검증, 미충족 시 LOUD FAIL
 #   uw-gate install-hooks          # hooks/ → core.hooksPath 배선(증거용)
 set -eu
@@ -218,6 +219,19 @@ cmd_halt_check() {
   return 0
 }
 
+cmd_merge_fact() {
+  src=${1:--}
+  if [ "$src" = - ]; then payload=$(cat); else [ -f "$src" ] || die "merge-fact: file not found: $src"; payload=$(cat "$src"); fi
+  state=$(printf '%s\n' "$payload" | sed -n 's/.*"state"[[:space:]]*:[[:space:]]*"\([^"]*\)".*/\1/p' | head -1)
+  oid=$(printf '%s\n' "$payload" | sed -n 's/.*"oid"[[:space:]]*:[[:space:]]*"\([^"]*\)".*/\1/p' | head -1)
+  if [ "$state" = MERGED ] && [ -n "$oid" ]; then
+    echo "merge-fact: MERGED commit=$oid"
+    return 0
+  fi
+  echo "merge-fact: incomplete state=${state:-missing} mergeCommit=${oid:-missing}" >&2
+  return 1
+}
+
 cmd_doctor() {
   issue=""
   [ "${1:-}" = "--issue" ] && issue=$2
@@ -232,15 +246,17 @@ cmd_doctor() {
 
   # 1) base branch protection: required check(uw-gate) + code-owner review + admin bypass (1 호출, gh 내장 jq)
   line=$(gh api "repos/$slug/branches/$base/protection" \
-    --jq '"checks=\((.required_status_checks.checks // .required_status_checks.contexts // []) | map(.context // .) | join(",")) coreview=\(.required_pull_request_reviews.require_code_owner_reviews // false) admins=\(.enforce_admins.enabled // false)"' 2>/dev/null) || line=""
+    --jq '"checks=\((.required_status_checks.checks // .required_status_checks.contexts // []) | map(.context // .) | join(",")) coreview=\(.required_pull_request_reviews.require_code_owner_reviews // false) stale=\(.required_pull_request_reviews.dismiss_stale_reviews // false) admins=\(.enforce_admins.enabled // false)"' 2>/dev/null) || line=""
   if [ -z "$line" ]; then
     echo "FAIL: $base branch protection 미설정/조회불가 → merge 하드 게이트 없음(전체가 honor-system으로 붕괴)." >&2; fail=1
   else
     checks=$(printf '%s' "$line" | sed -n 's/.*checks=\([^ ]*\).*/\1/p')
     coreview=$(printf '%s' "$line" | sed -n 's/.*coreview=\([^ ]*\).*/\1/p')
+    stale=$(printf '%s' "$line" | sed -n 's/.*stale=\([^ ]*\).*/\1/p')
     admins=$(printf '%s' "$line" | sed -n 's/.*admins=\([^ ]*\).*/\1/p')
     case ",$checks," in *uw-gate*) echo "OK: $base 보호 + uw-gate required check" ;; *) echo "FAIL: uw-gate가 required status check 아님(현재: ${checks:-none})" >&2; fail=1 ;; esac
     if [ "$coreview" = true ]; then echo "OK: code-owner review 필수"; else echo "FAIL: require_code_owner_reviews=false → CODEOWNERS 미발효(강제정의/charter 자가수정 가능)" >&2; fail=1; fi
+    if [ "$stale" = true ]; then echo "OK: stale approval 자동 무효화"; else echo "FAIL: dismiss_stale_reviews=false → clear artifact 이후 변경이 과거 approval을 재사용 가능" >&2; fail=1; fi
     if [ "$admins" = true ]; then echo "OK: enforce_admins(관리자도 우회 불가)"; else echo "WARN: enforce_admins=false → admin/광범위 토큰이 게이트 우회 가능('Do not allow bypassing' 권장)" >&2; warn=1; fi
   fi
 
@@ -298,7 +314,8 @@ case "$sub" in
   verify-run)    cmd_verify_run "$@" ;;
   halt)          cmd_halt "$@" ;;
   halt-check)    cmd_halt_check "$@" ;;
+  merge-fact)    cmd_merge_fact "$@" ;;
   doctor)        cmd_doctor "$@" ;;
   install-hooks) cmd_install_hooks "$@" ;;
-  *) echo "uw-gate: unknown subcommand '${sub:-}' (charter-scope|lint-fence|verify-run|halt|halt-check|doctor|install-hooks)" >&2; exit 2 ;;
+  *) echo "uw-gate: unknown subcommand '${sub:-}' (charter-scope|lint-fence|verify-run|halt|halt-check|merge-fact|doctor|install-hooks)" >&2; exit 2 ;;
 esac

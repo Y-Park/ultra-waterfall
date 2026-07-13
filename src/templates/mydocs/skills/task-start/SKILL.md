@@ -19,7 +19,7 @@ description: |
 - charter(`mydocs/plans/task_{milestone}_{N}_charter.md`)가 `LOCKED`
 - **charter 현재 해시 == `loop-state.charterHash` baseline** (변조 없음). 불일치면 시작하지 말고 charter급 에스컬레이션
 - 이슈 번호 N과 마일스톤이 charter·loop-state에 기록됨
-- working tree에는 인테이크/등록이 만든 **expected intake artifacts**만 존재: 잠긴 charter, `.ultra-waterfall/verify/*.sh`, `.ultra-waterfall/verify/*.mutant.sh`, `.ultra-waterfall/task-{N}.json`. 다른 변경이 하나라도 섞였으면 시작하지 않는다.
+- working tree에는 인테이크/등록이 만든 **expected intake artifacts**만 존재: 잠긴 charter, `.ultra-waterfall/verify/task-{N}/*.sh`, `.ultra-waterfall/task-{N}.json`. 다른 변경이나 다른 task namespace 수정이 하나라도 섞였으면 시작하지 않는다.
 - `gh` CLI 인증 완료
 
 ## 절차
@@ -33,7 +33,7 @@ description: |
 2. expected intake artifacts 범위 검사
    ```bash
    git status --short
-   # 출력 경로가 charter + verify scripts + task-{N}.json 집합 안인지 전부 확인
+   # 출력 경로가 charter + verify/task-{N} scripts + task-{N}.json 집합 안인지 전부 확인
    ```
    - 범위 밖 변경, 기존 tracked 파일 수정, 다른 task 산출물이 있으면 섞어서 커밋하지 말고 에스컬레이션.
 3. 원격 최신 base에서 작업 브랜치 생성. expected intake artifacts는 새 브랜치로 그대로 운반한다.
@@ -61,7 +61,7 @@ description: |
    ```bash
    git add mydocs/plans/task_{milestone}_{N}_charter.md \
      mydocs/plans/task_{milestone}_{N}_impl.md mydocs/orders/{yyyymmdd}.md \
-     .ultra-waterfall/verify .ultra-waterfall/task-{N}.json
+     .ultra-waterfall/verify/task-{N} .ultra-waterfall/task-{N}.json
    git commit -m "Task #{N}: 계약 baseline과 구현계획서 확정"
    ```
    - 이 커밋은 product 구현 전 상태 + frozen 검증을 함께 가진다. CI는 task loop-state가 최초 추가된 commit을 red-first baseline으로 도출한다.

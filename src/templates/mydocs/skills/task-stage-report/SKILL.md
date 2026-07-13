@@ -28,13 +28,17 @@ description: |
 3. **검증 candidate snapshot 생성**: 계획된 구현 경로만 index에 올리고, branch를 움직이지 않는 임시 commit을 만든다. 이 commit SHA가 검증자가 받은 구현 후보의 정확한 식별자다.
    ```bash
    git add {이 Stage의 구현 파일만}
+   CANDIDATE_PATHS=$(git diff --cached --name-only)
    CANDIDATE_TREE=$(git write-tree)
    CANDIDATE_COMMIT=$(printf 'Task #%s Stage %s verification candidate\n' "{N}" "{S}" | git commit-tree "$CANDIDATE_TREE" -p HEAD)
    VERIFY_WT=$(mktemp -d) && rmdir "$VERIFY_WT"
    git worktree add --detach "$VERIFY_WT" "$CANDIDATE_COMMIT"
    ```
-   - `git status --short`로 index에 계획 밖 파일이 없는지 먼저 확인한다. candidate는 임시 객체이며 `local/task{N}` ref를 이동하지 않는다.
-4. **검증 명령 실행(charter 고정)**: 구현자가 담당 AC의 **charter 검증 명령을 그대로** 실행한다(약화·변경 금지). 원문 출력과 `CANDIDATE_COMMIT`을 로그로 보존·커밋: `mydocs/working/task_{milestone}_{N}_stage{S}.log`. `state: verifying`.
+   - `git status --short`로 index에 계획 밖 파일이 없는지 먼저 확인한다. `CANDIDATE_PATHS`는 빈 값이면 안 되며 stage 보고서에 기록한다. candidate는 임시 객체이며 `local/task{N}` ref를 이동하지 않는다.
+4. **검증 명령 실행(charter 고정)**: 구현자가 담당 AC의 **charter 검증 명령을 그대로** `uw-gate verify-run`으로 실행한다(약화·변경 금지). 원문 출력과 `CANDIDATE_COMMIT`을 구조화 envelope 로그로 보존·커밋: `mydocs/working/task_{milestone}_{N}_stage{S}.log`. `state: verifying`.
+   ```bash
+   .ultra-waterfall/bin/uw-gate verify-run {ac} --log mydocs/working/task_{milestone}_{N}_stage{S}.log -- {charter 검증 argv}
+   ```
 5. **독립 검증 판정(OK/MISS — 적대적 반증)**: 구현 대화이력과 분리된 독립 검증으로 판정한다(`ultra_loop_guide.md` "자동 검증 게이트").
    - 별도 컨텍스트(서브에이전트 또는 fresh-eyes)에 **charter(AC·검증 기준) + `git diff HEAD "$CANDIDATE_COMMIT"` + candidate SHA**만 주고 "charter를 충족하지 *못하는* 반례를 찾아라"(refute-first). 검증자는 **`VERIFY_WT`의 깨끗한 candidate checkout에서 직접** 검증 명령을 재실행한다(구현자 로그 불신; 보고≠재실행이면 MISS).
    - **독립 적대 프로브(필수)**: 동결 명령 재실행에 더해, 검증자가 AC 실패공간을 자기 입력으로 추가 공격(경계·다항목·반례). 동결 명령은 통과하나 프로브가 위반을 찾으면 = teeth 부족 → MISS + charter급 에스컬레이션.
@@ -50,11 +54,22 @@ description: |
 10. **변경 점검 + 커밋(OK 시)**
    ```bash
    git status --short && git diff --check
-   git add {단계 산출 파일들} mydocs/working/task_{milestone}_{N}_stage{S}.md mydocs/working/task_{milestone}_{N}_stage{S}.log .ultra-waterfall/task-{N}.json
+   # 검증 뒤 구현 blob이 바뀌었으면 commit하지 말고 새 candidate로 3번부터 재검증한다.
+   git diff --quiet "$CANDIDATE_COMMIT" -- $CANDIDATE_PATHS
+   git add mydocs/working/task_{milestone}_{N}_stage{S}.md mydocs/working/task_{milestone}_{N}_stage{S}.log .ultra-waterfall/task-{N}.json
+   git diff --cached --quiet "$CANDIDATE_COMMIT" -- . \
+     ':(exclude)mydocs/working/task_{milestone}_{N}_stage{S}.md' \
+     ':(exclude)mydocs/working/task_{milestone}_{N}_stage{S}.log' \
+     ':(exclude).ultra-waterfall/task-{N}.json'
    git commit -m "Task #{N} Stage {S}: {핵심 내용 요약}"
+   git diff --quiet "$CANDIDATE_COMMIT" HEAD -- . \
+     ':(exclude)mydocs/working/task_{milestone}_{N}_stage{S}.md' \
+     ':(exclude)mydocs/working/task_{milestone}_{N}_stage{S}.log' \
+     ':(exclude).ultra-waterfall/task-{N}.json'
    ```
+   - 첫 번째 비교는 candidate 당시 구현 경로가 working tree에서 그대로인지 확인한다. 두 번째·세 번째는 candidate와 최종 index/Stage commit의 **전체 tree**를 비교하되 이번 Stage의 보고서·로그·loop-state만 차이로 허용한다. 검증 뒤 추가된 새 구현 경로도 차단한다. 하나라도 다르면 해당 Stage commit은 무효이며 새 candidate 검증부터 반복한다.
    - 하위 단계: `Task #{N} [Stage {S.M}]: 내용`. 한 단계는 한 커밋(산출물+보고서+로그+loop-state 묶음).
-11. **loop-state 갱신(커밋에 포함)**: `currentStage`, `totalStages += 1`, `selfCorrectionTotal`(누적), `currentStageCorrections`(다음 Stage에서 0 리셋), `lastVerification`(OK/MISS·by:independent·candidate SHA·로그#해시), `history[]`에 `{stage,result,corrections,at}` append, `state`, `updatedAt`.
+11. **loop-state 갱신(커밋에 포함)**: `currentStage`, `totalStages += 1`, `selfCorrectionTotal`(누적), `currentStageCorrections`(다음 Stage에서 0 리셋), `lastVerification`(OK/MISS·by:independent·candidate SHA·`evidence: 로그경로#git:<git hash-object 결과>`), `history[]`에 `{stage,result,corrections,at}` append, `state`, `updatedAt`.
 12. **관찰성 push**: `git push origin local/task{N}:publish/task{N}` (선택: Issue/PR에 `Stage {S}/{plannedStages}, 남은 AC {j}` 한 줄 코멘트).
 13. OK면 다음 Stage 자동 진입(`task-stage-report` 재호출). 모든 AC가 충족되면 [`task-final-report`](../task-final-report/SKILL.md)로 종료 절차.
 

@@ -47,7 +47,7 @@
 규약은 문서로 막히지 않는다. 강제는 두 층이다(상세: [`mydocs/manual/ultra_loop_guide.md`](mydocs/manual/ultra_loop_guide.md) "강제 레이어").
 
 - **로컬 = tamper-evidence + 마찰(강제 아님)**: `.ultra-waterfall/bin/uw-gate`(charter-scope/verify-run/halt/doctor) + git hooks(`.ultra-waterfall/hooks/`) + Claude 전용 `.claude/settings.json` PreToolUse. `--no-verify`·`core.hooksPath`·settings 자기편집으로 우회 가능.
-- **권위 = merge 시점 CI**: `.github/workflows/uw-gate.yml`가 base ref의 `check-gates.sh`와 `uw-gate`로 `base..head`를 재검사한다(G3 scope / G4 escalation event·actor·artifact·APPROVED review / G5 baseline MISS·HEAD PASS·mutant MISS clean 재실행). branch protection required check + `.github/CODEOWNERS` + least-priv 토큰이 trust-root.
+- **권위 = merge 시점 CI**: `.github/workflows/uw-gate.yml`가 base ref의 `check-gates.sh`와 `uw-gate`로 `base..head`를 재검사한다(G3 scope / G4 append-only escalation·labeled→unlabeled·외부 User·현재 PR artifact·최신 HEAD approval / G5 BASE 직후 contract-only baseline MISS·HEAD PASS·mutant 주입 후 MISS·evidence blob). branch protection required check + `.github/CODEOWNERS` + stale approval 무효화 + least-priv 토큰이 trust-root.
 
 행동 규칙:
 - 강제 정의 경로(`.ultra-waterfall/{bin,gate,hooks}/**`, `.github/workflows/uw-gate.yml`, `.github/CODEOWNERS`, `.claude/settings.json`)와 charter는 **LOOP 중 수정 금지**(charter급 에스컬레이션).

@@ -24,7 +24,8 @@
 2. `exit.code`로 분기:
    - `running` 인 task가 있으면 → **재개**(3번). 인간이 지정하지 않는 한 새 task를 시작하지 않는다.
    - `escalated` → 인간 해소 입력이 있는지 확인. 없으면 진행 금지(대기). 있으면 resume 규약(아래 "에스컬레이션")으로 복귀.
-   - `awaiting_merge` → PR이 열려 있으면 인간 검토 대기. `gh pr view`가 `MERGED`를 증명하면 effective `done`으로 보고 cleanup한다.
+   - `awaiting_merge` → PR이 open+ready면 인간 검토 대기. PR이 없거나 draft면 [`task-final-report`](../skills/task-final-report/SKILL.md) 7번의 publish push/create-or-edit/ready를 재실행해 복구한다(구현 LOOP로 돌아가지 않는다). closed-unmerged면 이유를 보존하고 에스컬레이션한다. `gh pr view --json state,mergeCommit` 출력을 `uw-gate merge-fact`가 통과하면 effective `done`으로 보고 cleanup한다.
+   - legacy `exit.code: completed` 또는 `state: done` → 기존 0.3.0 task의 historical completion으로 읽는다. 새 task에는 쓰지 않으며, 대응 PR이 실제 `MERGED`인지 확인한 뒤 cleanup만 수행한다.
    - merged PR에 대응하는 historical task만 있거나 진행 중 task가 없으면 → 새 인테이크 가능.
 3. lease 확인(동시 세션 충돌 방지): `lease.sessionId`가 있고 `acquiredAt + ttlSec`가 아직 유효하면 다른 세션이 작업 중이다. stale(만료)일 때만 lease를 새 `sessionId`로 갱신하고 이어받는다.
 4. `state`로 재진입 지점 결정:
@@ -152,8 +153,8 @@ charter는 LOOP의 유일한 불변 계약이다. "골대 이동"(MISS를 만나
 
 세 게이트(권위 층에서 강제):
 - **G3 charter 적합성**: `base..head` 변경 경로가 charter scope fence(allow/deny) 내인가 + 강제 정의 경로·charter 변경은 CODEOWNER review 필수. off-charter = 약화 말고 charter급 에스컬레이션.
-- **G4 우회불가 에스컬레이션**: CI는 task Issue의 `needs-human` 제거 event가 escalation 시각 이후인지, event actor가 PR agent와 다른지, `clearedBy`와 일치하는지, `clearArtifact`가 HEAD의 `mydocs/feedback/`에 versioned됐는지, 같은 actor의 post-escalation `APPROVED` review가 있는지 escalation마다 1:1 대조한다. branch protection이 CODEOWNER review를 요구해야 이 approval이 trust-root가 되며, 조회·증거 불충분은 fail-close.
-- **G5 아티팩트 도출 + 격리**: loop-state 최초 추가 commit을 계약 baseline으로 도출하고 baseline/HEAD를 별도 detached worktree로 만든다. 각 frozen 검증의 **baseline MISS → HEAD PASS**, mutant의 **HEAD MISS**를 직접 재실행하며 baseline 이후 verify script 변경도 차단한다. 검증 잡은 read-only/no-secrets 러너로 격리.
+- **G4 우회불가 에스컬레이션**: CI는 base..head의 `escalations[]`가 append-only인지 먼저 확인한다. 각 항목은 task Issue의 `needs-human` labeled event가 escalation 시각 이후인지, 뒤따른 unlabeled event actor가 PR agent와 다른 GitHub `User`이자 `clearedBy`와 일치하는지, `clearArtifact`가 현재 PR에서 추가·변경되고 HEAD의 `mydocs/feedback/`에 versioned됐는지, 같은 actor의 `APPROVED` review가 unlabeled 뒤 최신 HEAD에 제출됐는지 1:1 대조한다. workflow는 review 제출·수정·철회에도 재실행한다. branch protection의 CODEOWNER review와 stale approval 자동 무효화가 trust-root이며, 조회·증거 불충분은 fail-close.
+- **G5 아티팩트 도출 + 격리**: loop-state 최초 추가 commit이 BASE의 직접 자식이고 product 변경이 없는지 확인해 계약 baseline으로 도출한 뒤 baseline/HEAD/mutant를 독립 clone으로 만든다. 현재 task의 `.ultra-waterfall/verify/task-{issue}/`만 선택해 각 frozen 검증의 **baseline MISS → HEAD PASS**를 실행별 빈 HOME에서 재실행한다. mutant는 별도 HEAD clone에서 위반을 주입(exit 0)하고 새 빈 HOME에서 같은 frozen 검증이 MISS하는지 판정한다. baseline 이후 현재 task verify 변경도 차단한다. 검증 실행 전 외부 증거 검사를 끝내고 토큰을 제거하며, 검증 잡은 read-only/no-secrets 러너로 격리한다.
 
 정직한 잔여(이 레이어 후에도 honor-system): in-loop 로컬 실행 우회, **silent-no-escalate**(산출물 0이라 어떤 게이트도 못 잡음 — G1 teeth+인간만), on-charter 파일 안 의미론적 드리프트, *약한*(항진은 아니나 mutant 미모델) 검증, 인간 reviewer rubber-stamp·admin 미설정. 전체 설계·위협모델은 [`enforcement-layer-design.md`](../../../docs/enforcement-layer-design.md), 강제가 성립하려면 admin이 깔아야 하는 trust-root는 [`operator-setup.md`](../../../docs/operator-setup.md)(Phase 0). 현실 도달점 8→9.
 
@@ -178,7 +179,7 @@ task마다 `.ultra-waterfall/task-{issue}.json` 하나. 진행 중 task는 `git 
   "currentStageCorrections": 0,
   "guards": { "maxStages": 8, "maxSelfCorrectionTotal": 24, "maxPerStage": 3 },
   "state": "planning | implementing | verifying | correcting | escalated | awaiting_merge",
-  "lastVerification": { "stage": 0, "result": "OK | MISS", "by": "independent", "evidence": "working/...stage0.log#sha256" },
+  "lastVerification": { "stage": 0, "result": "OK | MISS", "by": "independent", "candidate": "commit SHA", "evidence": "mydocs/working/...stage0.log#git:<blob id>" },
   "history": [ { "stage": 1, "result": "OK", "corrections": 0, "at": "ISO-8601" } ],
   "owner": "sessionId",
   "lease": { "sessionId": "", "acquiredAt": "ISO-8601", "ttlSec": 3600 },
@@ -193,8 +194,10 @@ task마다 `.ultra-waterfall/task-{issue}.json` 하나. 진행 중 task는 `git 
 
 - `state`=현재 Stage 진행 위치, `exit.code`=LOOP 전체 상태. 매 갱신에 `updatedAt`(ISO-8601) 기록.
 - `awaiting_merge`는 전 AC OK 뒤 인간 merge를 기다리는 tracked 최종 상태다. `done`은 PR의 `MERGED`+`mergeCommit`이라는 외부 사실에서만 도출하며 merge 전 loop-state에 쓰지 않는다.
+- legacy 0.3.0의 `state: done`/`exit.code: completed`는 historical completion을 읽기 위한 호환값이다. 새 writer는 `awaiting_merge`까지만 기록한다.
 - `totalStages`/`selfCorrectionTotal`=가드용 누적값. `plannedStages`=계획값(예측용, 누적값과 구분).
 - `history[]`=Stage별 append-only 궤적(사후 감사·재구성용).
+- `lastVerification.evidence`는 `uw-gate verify-run` envelope가 든 versioned 로그의 `경로#git:<git hash-object 결과>`다. CI는 HEAD blob과 이 값을 직접 대조한다.
 - `enforcement`=`uw-gate doctor`가 채우는 trust-root 검증 결과(미충족이면 `doctorVerified:false` — 강제를 'active'로 주장하지 않는다). `escalations[]`=G4 발화·클리어 궤적(CI가 미클리어 항목 발견 시 merge 차단). `gateBaselineRef`=CI 권위 게이트 base ref.
 
 ## 전역 가드 기본값

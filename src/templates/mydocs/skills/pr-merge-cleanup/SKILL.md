@@ -23,10 +23,11 @@ description: |
 
 1. PR과 이슈 상태 확인
    ```bash
-   gh pr view {번호} --json state,mergedAt,mergeCommit,headRefName
+   gh pr view {번호} --json state,mergedAt,mergeCommit,headRefName > /tmp/uw-pr-{번호}.json
+   .ultra-waterfall/bin/uw-gate merge-fact /tmp/uw-pr-{번호}.json
    gh issue view {N} --json state
    ```
-   - PR `state == MERGED` 아니면 즉시 중단하고 보고
+   - `merge-fact`가 비-0이면(`MERGED` 아님 또는 `mergeCommit` null/누락) 즉시 중단하고 보고
 2. 이슈 close (PR merged 확인 후 자동 close, 이미 `closes #N`으로 자동 close된 경우는 skip)
    ```bash
    gh issue close {N}

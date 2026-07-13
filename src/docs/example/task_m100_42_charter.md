@@ -63,12 +63,12 @@ allow tests/**
 
 | AC | 검증 명령(실행) | OK 조건 | red-first(미작업 시 MISS) | teeth(위반 변종 주입 시 MISS) |
 |---|---|---|---|---|
-| AC1 | `sh verify/ac1.sh` | exit 0 | 버그 baseline에서 `complete(-1)`이 raise 안 함 → `MISS: complete(-1) no raise`, exit 1 | upper-bound만 검사하는 약화 가드(`if i>=len: raise`) 주입 시 음수 래핑이 통과 → mutant 스크립트 exit 1 (=teeth 있음) |
+| AC1 | `sh verify/ac1.sh` | exit 0 | 버그 baseline에서 `complete(-1)`이 raise 안 함 → `MISS: complete(-1) no raise`, exit 1 | mutant 스크립트가 upper-bound만 검사하는 약화 가드(`if i>=len: raise`)를 주입(exit 0)한 뒤 frozen 검증이 exit 1 |
 
 - **기계검증 우선**: AC1은 실행 명령(exit code)으로 판정한다.
 - **red-first**: 미수정 baseline에서 `verify/ac1.sh`가 실제로 MISS(exit 1)임을 잠금 전 확인했다.
-- **teeth 필수**: 음수 래핑을 잡지 못하는 약화 가드를 주입하면 `verify/ac1.mutant.sh`가 MISS(비0)를 낸다 — 검증이 "막으려는 그 결함"을 실제로 잡음을 입증.
-- **CI 실행형 emit**: `verify/ac1.sh`(통과=exit0) + `verify/ac1.mutant.sh`(mutant 주입 시 비0). 실제 task에선 `.ultra-waterfall/verify/`에 emit.
+- **teeth 필수**: `verify/ac1.mutant.sh`가 음수 래핑을 잡지 못하는 약화 가드를 주입(exit 0)하면, 같은 frozen `verify/ac1.sh`가 MISS(비0)를 낸다.
+- **CI 실행형 emit**: `verify/ac1.sh`(통과=exit0) + `verify/ac1.mutant.sh`(위반 주입=exit0). 실제 task에선 `.ultra-waterfall/verify/task-42/`에 emit.
 
 CI 강제 AC 선언(G5 parity):
 

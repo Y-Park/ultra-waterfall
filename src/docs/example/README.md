@@ -24,6 +24,6 @@
 charter 잠금 시 인테이크가 emit하는 실행형 검증 짝:
 
 - `ac1.sh` — frozen 검증(통과=exit0). 본 예시에선 [`verify/ac1.sh`](verify/ac1.sh).
-- `ac1.mutant.sh` — teeth(약화 가드 주입 시 MISS=비0). [`verify/ac1.mutant.sh`](verify/ac1.mutant.sh).
+- `ac1.mutant.sh` — teeth injector(약화 가드 주입은 exit0, 이어서 frozen 검증이 MISS). [`verify/ac1.mutant.sh`](verify/ac1.mutant.sh).
 
-실제 task에선 이 두 파일이 `.ultra-waterfall/verify/`에 놓여 merge 시점 CI(`check-gates.sh` G5)가 clean-room에서 직접 재실행한다.
+실제 task에선 이 두 파일이 `.ultra-waterfall/verify/task-{issue}/`에 놓인다. merge 시점 CI(`check-gates.sh` G5)는 별도 clone에서 mutant를 주입한 뒤 frozen 검증을 다시 실행한다.

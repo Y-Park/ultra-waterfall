@@ -49,8 +49,11 @@ jobs:
             test/e2e-gates.sh \
             test/e2e-lifecycle.sh
 
-      - name: 강제 레이어 e2e (격리 repo 17시나리오, 하드 게이트)
+      - name: Workflow YAML parse
+        run: ruby -e 'require "yaml"; %w[.github/workflows/self-ci.yml src/templates/.github/workflows/uw-gate.yml].each { |f| YAML.load_file(f) }'
+
+      - name: 강제 레이어 e2e (격리 repo 32시나리오, 하드 게이트)
         run: sh test/e2e-gates.sh
 
-      - name: Lifecycle 계약 e2e (11단언, 하드 게이트)
+      - name: Lifecycle 계약 e2e (29단언, 하드 게이트)
         run: sh test/e2e-lifecycle.sh

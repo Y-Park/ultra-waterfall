@@ -11,6 +11,7 @@ ultra-waterfall의 강제 레이어에서 **유일한 진짜 하드 강제는 me
 - **Require a pull request before merging** (직접 push 금지).
 - **Require status checks to pass** → 아래 2의 `uw-gate` job을 required로 추가.
 - **Require review from Code Owners** (아래 4의 CODEOWNERS 발효).
+- **Dismiss stale pull request approvals when new commits are pushed** (clear artifact를 포함한 최신 HEAD를 승인하도록 강제).
 - **Do not allow bypassing the above settings**(admin 포함) 권장 — 안 그러면 admin/에이전트가 우회.
 
 ### 2. uw-gate를 required status check로

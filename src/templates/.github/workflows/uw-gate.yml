@@ -10,6 +10,8 @@ name: uw-gate
 on:
   pull_request:
     branches: ["{BASE_BRANCH}"]
+  pull_request_review:
+    types: [submitted, edited, dismissed]
 
 permissions:
   contents: read        # least-priv: 검증 코드(head) 실행의 공급망 표면 최소화
@@ -18,16 +20,19 @@ permissions:
 
 jobs:
   uw-gate:
+    if: ${{ github.event.pull_request.base.ref == '{BASE_BRANCH}' }}
     runs-on: ubuntu-latest
     steps:
       - name: Checkout (full history)
         uses: actions/checkout@v4
         with:
           fetch-depth: 0
+          ref: ${{ github.event.pull_request.head.sha }}
+          persist-credentials: false
       - name: Resolve refs
         id: refs
         run: |
-          echo "base=origin/${{ github.base_ref }}" >> "$GITHUB_OUTPUT"
+          echo "base=origin/${{ github.event.pull_request.base.ref }}" >> "$GITHUB_OUTPUT"
           echo "head=${{ github.event.pull_request.head.sha }}" >> "$GITHUB_OUTPUT"
       - name: Run authoritative gate from BASE ref (head가 게이트 로직을 못 바꾸게)
         env:
@@ -43,6 +48,7 @@ jobs:
           # 게이트 스크립트는 보호된 BASE ref 버전을 사용(head 위조 차단)
           git show "$base:.ultra-waterfall/gate/check-gates.sh" > /tmp/check-gates.sh 2>/dev/null \
             || { echo "::error::base ref에 check-gates.sh 없음 — 첫 도입이면 base에 게이트를 먼저 병합하라"; exit 1; }
-          git show "$base:.ultra-waterfall/bin/uw-gate" > /tmp/uw-gate 2>/dev/null || true
+          git show "$base:.ultra-waterfall/bin/uw-gate" > /tmp/uw-gate 2>/dev/null \
+            || { echo "::error::base ref에 uw-gate helper 없음"; exit 1; }
           chmod +x /tmp/check-gates.sh /tmp/uw-gate
           sh /tmp/check-gates.sh "$base" "$head"

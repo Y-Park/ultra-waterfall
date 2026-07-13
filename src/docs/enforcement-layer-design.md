@@ -69,7 +69,7 @@
 ### G5 — 아티팩트 도출 + 격리 (clean-room 재실행)
 
 - **Predicate:** done은 자기보고가 아니라 (a) charter 잠금 frozen 검증을 **CI가 clean checkout에서 직접 재실행**해 PASS, (b) 그 명령이 **red-first**(미작업/revert 시 MISS)·**teeth**(charter 표 mutant 주입 시 MISS)를 clean-room에서 통과, (c) 구조화 로그 envelope(argv+exit를 harness가 기록)이 커밋되고 `lastVerification.evidence`가 그 blob과 일치 — 에서 도출.
-- **Mechanism:** `uw-gate verify-run`이 명령 실행하며 argv/exit/ts를 **기계판독 JSON envelope**로 기록(자유텍스트 자가인용 금지) → 로컬은 부기. 실검증: CI가 *스스로* base..head를 clean runner에서 체크아웃해 frozen 명령·red-first·teeth/mutant를 재실행하고 *자기 결과로* 판정(커밋 로그 불신). **G1 합성:** charter 검증표 mutant를 CI가 주입해 MISS 안 나면 FAIL. worktree는 '회계 격리'로만(공유 .git/config/objects → 샌드박스 아님, 실측).
+- **Mechanism:** `uw-gate verify-run`이 명령 실행하며 argv/exit/ts를 **기계판독 envelope**로 기록(자유텍스트 자가인용 금지) → 로컬은 부기. 실검증: CI가 *스스로* base..head를 clean runner에서 체크아웃해 frozen 명령·red-first·teeth/mutant를 재실행하고 *자기 결과로* 판정(커밋 로그 불신). **G1 합성:** charter 검증표 mutant를 CI가 주입해 MISS 안 나면 FAIL. worktree는 '회계 격리'로만(공유 .git/config/objects → 샌드박스 아님, 실측).
 - **EnforcementPoint:** 권위=merge 시점 CI clean-room. 마찰=매 Stage commit에 envelope 동반(pre-commit이 로그-보고 동시커밋 확인, commit 유형 start/stage/final 구분해 정당 커밋 오탐 방지).
 - **HaltState:** CI 재실행 불일치(보고≠실제) 또는 red-first/teeth 미통과 → FAIL → merge 차단. 로컬은 envelope 누락/blob 불일치 시 경고(우회가능=증거).
 - **TrustRoot:** 에이전트 비통제 CI runner + base ref 잠금 검증 명령(CODEOWNERS) + 인간 review. 로컬 worktree 재실행은 격리 아님 → trust-root 없음.

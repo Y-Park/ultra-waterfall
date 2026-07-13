@@ -42,7 +42,7 @@ charter 전 수용 기준 통합 검증. 종료 조건 = 전 AC OK(MISS 0).
 - 통합 검증: MISS 0건 → 종료 조건 충족.
 - charter 해시 == baseline(골대 이동 없음).
 - scope fence 내 변경만(`src/todo.py`) → G3 통과 예상.
-- G5: `verify/ac1.sh` clean-room 재실행 PASS + `verify/ac1.mutant.sh` teeth MISS.
+- G5: `verify/ac1.sh` clean checkout 재실행 PASS + 별도 checkout에서 `verify/ac1.mutant.sh` 주입 후 frozen 검증 MISS.
 
 ## LOOP 메트릭
 

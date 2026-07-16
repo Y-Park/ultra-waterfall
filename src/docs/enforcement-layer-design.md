@@ -37,7 +37,7 @@
  client pre-commit/push ──┼─ uw-gate(부기)     CI 게이트(base ref 정의, CODEOWNERS 보호)
  .ultra-waterfall/HALT  ──┘     │                ├ G3: base..head 경로 ↔ 잠긴 fence
         (전부 우회가능 = 증거만)  │                ├ G4: history의 escalation ↔ 비-에이전트 클리어
-                                │                ├ G5: frozen 검증 + red-first + teeth clean-room 재실행
+                                │                ├ G5: frozen/red-first/teeth + cross-model envelope chain
                                 ▼                └ doctor: branch protection·required check·토큰 scope
                         loop-state(tamper-evident 기록)        │ required check FAIL → branch protection이 merge 차단
                                                                ▼
@@ -66,15 +66,15 @@
 - **Integration:** resume 규약을 '로컬 loop-state 편집+feedback'에서 '비-에이전트 라벨제거 + 클리어 산출물 커밋'으로 확장. self-merge 금지를 토큰으로 강제. **HW opt-in 초과(fail-closed halt)임을 명시적 잔여위험으로 표기**(plugin-distribution-principles.md:166-174).
 - **ResidualBypass:** (1) **silent-no-escalate**(라벨도 안 올리고 진행)는 산출물 0 → G4 불가, G1 teeth+인간만. (2) lease TTL 만료 후 새 세션은 escalation을 라벨(외부 halt-state)에 결박했을 때만 막힘. (3) 인간이 라벨을 rubber-stamp 제거하면 붕괴.
 
-### G5 — 아티팩트 도출 + 격리 (clean-room 재실행)
+### G5 — 아티팩트 도출 + 격리 + 교차 모델 chain
 
-- **Predicate:** done은 자기보고가 아니라 (a) charter 잠금 frozen 검증을 **CI가 clean checkout에서 직접 재실행**해 PASS, (b) 그 명령이 **red-first**(미작업/revert 시 MISS)·**teeth**(charter 표 mutant 주입 시 MISS)를 clean-room에서 통과, (c) 구조화 로그 envelope(argv+exit를 harness가 기록)이 커밋되고 `lastVerification.evidence`가 그 blob과 일치 — 에서 도출.
-- **Mechanism:** `uw-gate verify-run`이 명령 실행하며 argv/exit/ts를 **기계판독 envelope**로 기록(자유텍스트 자가인용 금지) → 로컬은 부기. 실검증: CI가 *스스로* base..head를 clean runner에서 체크아웃해 frozen 명령·red-first·teeth/mutant를 재실행하고 *자기 결과로* 판정(커밋 로그 불신). **G1 합성:** charter 검증표 mutant를 CI가 주입해 MISS 안 나면 FAIL. worktree는 '회계 격리'로만(공유 .git/config/objects → 샌드박스 아님, 실측).
+- **Predicate:** done은 자기보고가 아니라 (a) charter 잠금 frozen 검증을 **CI가 clean checkout에서 직접 재실행**해 PASS, (b) 그 명령이 **red-first**(미작업/revert 시 MISS)·**teeth**(charter 표 mutant 주입 시 MISS)를 clean-room에서 통과, (c) 반대 provider의 fresh 판정 chain이 candidate·charter·task-frozen config/model·probe와 결박되고 `lastVerification.by=cross-model` evidence가 final head와 일치 — 에서 도출.
+- **Mechanism:** `uw-verifier`가 candidate를 disposable bundle로 추출해 Claude 구현→Codex, Codex 구현→Claude를 호출한다. Stage·자기수정·final마다 새 비영속 세션을 만들고, `uw-probe` 실제 로그와 structured decision을 add-only atomic envelope에 기록한다. `uw-gate verify-envelope`는 base-ref 코드로 전체 chain, reachable candidate ancestry, provider 반대성, config freeze, charter/frozen/probe hash와 fresh flag를 검사한다. 동시에 CI는 기존 frozen 명령·red-first·teeth/mutant를 clean runner에서 자기 결과로 재판정한다.
 - **EnforcementPoint:** 권위=merge 시점 CI clean-room. 마찰=매 Stage commit에 envelope 동반(pre-commit이 로그-보고 동시커밋 확인, commit 유형 start/stage/final 구분해 정당 커밋 오탐 방지).
-- **HaltState:** CI 재실행 불일치(보고≠실제) 또는 red-first/teeth 미통과 → FAIL → merge 차단. 로컬은 envelope 누락/blob 불일치 시 경고(우회가능=증거).
+- **HaltState:** CI 재실행 불일치(보고≠실제), red-first/teeth 미통과, same-provider/config drift/probe·chain 불일치 → FAIL → merge 차단. 로컬 envelope 검사는 우회가능한 증거이며 merge 차단은 외부 required CI가 담당한다.
 - **TrustRoot:** 에이전트 비통제 CI runner + base ref 잠금 검증 명령(CODEOWNERS) + 인간 review. 로컬 worktree 재실행은 격리 아님 → trust-root 없음.
-- **Integration:** stage-report 3번(로그 보존)을 envelope로 교체. final-report 통합검증을 CI가 재현. CI 검증 잡을 **contents:read-only·no-secrets 러너로 격리**(head 검증코드 실행의 공급망 잔여 완화).
-- **ResidualBypass:** (1) 인간이 잠근 검증이 항진은 아니나 *약한*(mutant 미모델 결함류 누락) 경우 CI가 공허한 PASS를 충실히 재생산 = **기계검증 의미론적 천장(8≠10 실체)**. (2) head 검증코드 CI 실행의 공급망 표면(least-priv 완화, 제거 불가). (3) CI가 red-first/teeth 재실행을 안 하면 teeth 주장 자체가 honor-system으로 남음 — 이 재실행이 핵심.
+- **Integration:** task-start가 verifier effective tuple과 config hash를 loop-state 0.4.0에 동결한다. Stage/final은 reachable candidate + frozen 로그 + verifier envelope/probe를 묶고 final-report 통합검증을 별도 fresh 호출한다. CI 검증 잡은 **contents:read-only·no-secrets 러너로 격리**한다.
+- **ResidualBypass:** (1) 서로 다른 model도 같은 데이터·평가 관습 때문에 맹점을 공유할 수 있어 결함 감소를 보장하지 않는다. (2) envelope는 호출 주체의 암호학적 attestation이 아니며 같은 파일시스템 권한의 작성자를 증명하지 못한다. (3) 인간이 잠근 검증이 *약한*(mutant 미모델) 경우 두 모델과 CI가 모두 공허한 PASS를 낼 수 있다. (4) candidate 내부 prompt injection의 의미적 무시는 sandbox/지시만으로 완전히 증명할 수 없다. (5) head 검증코드 실행의 공급망 표면은 least-priv로 완화할 뿐 제거하지 못한다.
 
 ## 4. Threat Model (남는 우회 × 완화 × 잔여위험)
 
@@ -89,6 +89,8 @@
 | AI작성 fence/charter 순환(느슨한 allow 잠금) | 템플릿 protected-excludes + lint(`**` 거부) + CI 광역성 경고 + base ref fence 사용 | 인간이 fence/charter diff 안 읽으면 'human-must-notice'로 붕괴 |
 | **G4 silent-no-escalate**(라벨 안 올리고 진행) | 없음(G4 불가). G1 독립검증 teeth + 인간 review만 | 정직한 잔여위험. 강제 불가 |
 | toothless-but-honest 검증(약하지만 항진은 아님) | CI가 red-first/teeth/mutant 직접 재실행(항진/명백약함 차단) | mutant 미모델 결함류는 통과 = 의미론적 천장. intake 인간 판단 의존 |
+| 동일 provider·세션 앵커링 | 반대 provider 고정 + 호출마다 fresh 비영속 session + 정규화 envelope ledger | 다른 model도 상관 맹점을 공유할 수 있고 교차 모델 자체는 결함 부재 증명이 아님 |
+| envelope 파일 위조·삭제·재배열 | base-ref G5가 add-only evidence, hash chain, candidate/config/charter/probe binding 검사 | 외부 서명/attestation 아님. branch trust-root가 무너지면 작성 주체를 증명 못 함 |
 | G5 위해 CI가 head 검증코드 실행(공급망) | contents:read-only·no-secrets 러너 격리, 판정은 base 코드 | 완화일 뿐 제거 불가 |
 | 인간 reviewer rubber-stamp | PR 본문이 게이트 변경 diff 강조 + 변경 PR에 라벨 | 최종 trust-root는 인간. 안 보면 붕괴 — 본질적 한계 |
 
@@ -99,12 +101,13 @@
 1. 에이전트 자기 머신의 in-loop 실행은 여전히 우회가능(--no-verify, hooksPath 미설치 fail-OPEN, plumbing/merge hook 스킵, 비-sandbox Claude settings.json 자기편집, Codex pre-block 부재). 이 설계는 tamper-EVIDENT·마찰로 만들 뿐 *막지* 못한다.
 2. silent-no-escalate(조용히 드리프트 진행)는 산출물 0 → 어떤 게이트도 탐지 불가. G1 teeth + 인간 review만.
 3. on-charter 파일 안 의미론적 드리프트(shadow feature) — 경로/scope 게이트 불가시. teeth+인간만.
-4. 인간이 잠근 검증이 '약한'(mutant 미모델 결함류 누락) 경우 CI가 공허한 PASS 재생산 = 기계검증 의미론적 천장(8≠10).
-5. 최종 trust-root = config/charter/fence diff를 *실제로 읽는* 인간 + branch protection·require-workflows·토큰을 *설정하는* admin. 방법론은 요구·검증만 가능. 인간 rubber-stamp나 admin 미설정 시 붕괴하며, doctor는 후자만 fail시킬 수 있고 전자는 못 막는다.
+4. 인간이 잠근 검증이 '약한'(mutant 미모델 결함류 누락) 경우 CI와 두 모델이 공허한 PASS를 재생산할 수 있다.
+5. cross-model envelope는 tamper-evidence이지 서명된 외부 실행 attestation이 아니다.
+6. 최종 trust-root = config/charter/fence diff를 *실제로 읽는* 인간 + branch protection·require-workflows·토큰을 *설정하는* admin. 방법론은 요구·검증만 가능. 인간 rubber-stamp나 admin 미설정 시 붕괴하며, doctor는 후자만 fail시킬 수 있고 전자는 못 막는다.
 
 ## 6. 도구 비종속 계획
 
-- **공유(양쪽 동일):** uw-gate CLI(POSIX sh, 계산·부기), git pre-commit/pre-push(tamper-evidence; 양쪽 동일하게 --no-verify/hooksPath 우회가능 = 여기선 '도구비종속'이 '양쪽 동일하게 약함'), **하드 강제 floor = CI(base-ref 게이트)+branch protection+least-priv 토큰**(두 도구 모두 동일하게 적용되는 유일한 진짜 강제).
+- **공유(양쪽 동일):** uw-gate CLI(POSIX sh, 계산·부기), Python 표준 라이브러리 `uw-verifier`(Codex·Claude adapter), git pre-commit/pre-push(tamper-evidence), **하드 강제 floor = CI(base-ref 게이트)+branch protection+least-priv 토큰**.
 - **Claude Code:** 추가 마찰 1겹 — .claude/settings.json PreToolUse(Edit|Write deny-glob, Bash deny --no-verify/core.hooksPath/HALT중 done). 최대 하드닝(선택)=sandbox FS deny + managed-settings+allowManagedHooksOnly. 비-sandbox 기본선 settings 자기편집으로 무력화 → 마찰일 뿐.
 - **Codex:** PreToolUse/sandbox 등가물 *없음*. 폴백=AGENTS.md 규약(honor-system) + 동일 git hook(증거) + **동일 CI 하드 floor**. in-loop 마찰은 Claude보다 약한 비대칭이나 *하드 강제는 CI라 완전 동일*.
 - **결론:** 도구비종속 하드 강제 = **CI-at-merge only**. AGENTS.md 규약을 'Codex 패리티'로 세지 않는다(그게 게이트가 대체하려는 honor-system). 비대칭을 숨기지 않고 명시.
@@ -121,6 +124,8 @@
 ## 8. 신규 산출물
 
 - `src/templates/.ultra-waterfall/bin/uw-gate` (POSIX sh 게이트 엔진; 로컬 read-only/부기)
+- `src/templates/.ultra-waterfall/bin/uw-verifier` (Python stdlib 교차 모델 fresh 실행기)
+- `src/templates/.ultra-waterfall/verifier/` (preserve 사용자 config + overwrite schema/prompt)
 - `src/templates/.ultra-waterfall/gate/check-gates.sh` (CI가 base ref에서 실행하는 권위 로직)
 - `src/templates/.ultra-waterfall/hooks/pre-commit`, `pre-push` (tamper-evidence, commit 유형 인지)
 - `src/templates/.github/workflows/uw-gate.yml` (require-workflows/pull_request_target; 검증 잡 contents:read-only 격리)
@@ -129,7 +134,7 @@
 - charter.md 템플릿: '강제 범위(scope fence)' 블록(allow/deny globs + protected-excludes)
 - `manifest.json`: 위 파일 엔트리 + `.ultra-waterfall/{bin,gate,hooks}` tracked(overwrite) / task-*.json·version.json·HALT per-instance(preserve) 분리
 - `AGENTS1.md`: Codex 폴백 규약 + 토큰 권한 모델 + HW 경계 초과(fail-closed) 명시
-- loop-state 신규 필드: `scopeFenceHash`, `enforcement{doctorVerified,branchProtection,requiredCheck,tokenScoped,checkedAt}`, `escalations[]{at,reason,clearedBy,clearArtifact}`, `lastVerification.envelope`, `gateBaselineRef`
+- loop-state 0.4.0 신규 필드: `verifier{implementerProvider,provider,configPath,configHash,model,effort,chainHead}`, `lastVerification.by=cross-model` + 기존 enforcement/escalation/gate baseline 필드
 
 ## 9. 한 줄 요약
 

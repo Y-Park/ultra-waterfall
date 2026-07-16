@@ -46,7 +46,7 @@ changed=$(git diff --name-only "$BASE...$HEAD")
 note "changed files: $(printf '%s' "$changed" | wc -l | tr -d ' ')"
 
 # --- 강제정의 변경 감지(G3 핵심): 게이트 machinery/charter가 diff에 있으면 인간(CODEOWNER) review 필수 ---
-defn_changed=$(printf '%s\n' "$changed" | grep -E '^(\.github/workflows/uw-gate\.yml|\.github/CODEOWNERS|\.ultra-waterfall/(bin|gate|hooks)/|\.claude/settings\.json)' || true)
+defn_changed=$(printf '%s\n' "$changed" | grep -E '^(\.github/workflows/uw-gate\.yml|\.github/CODEOWNERS|\.ultra-waterfall/(bin|gate|hooks)/|\.ultra-waterfall/verifier/(config|decision|envelope)\.schema\.json|\.ultra-waterfall/verifier/prompt\.md|\.claude/settings\.json)' || true)
 ch_changed=$(printf '%s\n' "$changed" | grep -E 'charter' || true)
 if [ -n "$defn_changed" ] || [ -n "$ch_changed" ]; then
   note "강제 정의/charter 변경 포함 → CODEOWNER 인간 승인 + 의도된 charter급 변경인지 확인 필요:"
@@ -166,6 +166,17 @@ EOF
   else
     bad "G5 frozen verify scripts가 계약 baseline 이후 변경됨"
   fi
+  state_schema=$(json_str schemaVersion "$ls_f")
+  if [ "$state_schema" = 0.4.0 ]; then
+    config_rel=$(json_str configPath "$ls_f")
+    if [ -z "$config_rel" ]; then
+      bad "G5 verifier configPath가 loop-state에 없음"
+    elif git diff --quiet "$baseline_ref" "$HEAD" -- "$config_rel"; then
+      note "G5 verifier config: task baseline 이후 동일"
+    else
+      bad "G5 verifier config가 task baseline 이후 변경됨"
+    fi
+  fi
 
   BASE_WT=$(mktemp -d); rm -rf "$BASE_WT"
   HEAD_WT=$(mktemp -d); rm -rf "$HEAD_WT"
@@ -245,7 +256,16 @@ if [ -n "$active_charter" ] && [ -f "$ROOT/$active_charter" ]; then
   fi
 fi
 
-# --- G5 evidence: 독립 검증 envelope와 HEAD blob 결박(신규 task namespace) ---
+# --- G5 evidence: 0.4 cross-model chain 또는 legacy 독립 로그 결박 ---
+state_schema=""
+[ -z "$ls_f" ] || state_schema=$(json_str schemaVersion "$ls_f")
+if [ "$state_schema" = 0.4.0 ]; then
+  set +e
+  "$GATE" verify-envelope --task "$issue" --ref "$HEAD"
+  evidence_rc=$?
+  set -e
+  if [ "$evidence_rc" -eq 0 ]; then note "G5 cross-model envelope chain OK"; else bad "G5 cross-model envelope chain 불충분"; fi
+else
 case "$verify_rel" in
   .ultra-waterfall/verify/task-*)
     set +e
@@ -305,6 +325,7 @@ PY
     if [ "$evidence_rc" -eq 0 ]; then note "G5 lastVerification evidence/blob OK"; else bad "G5 lastVerification evidence 불충분"; fi
     ;;
 esac
+fi
 
 # --- G4: task별 escalation history ↔ 외부 clear actor/event/artifact 대조 ---
 G4_TMP=${UW_G4_EVENTS_FILE:-}

@@ -12,8 +12,8 @@
 
 - 소스 수정 전 charter(방향 명세)가 인테이크에서 확정·잠금(`LOCKED`)되어 있어야 한다. charter 범위 내 변경은 추가 승인 없이 자율 진행한다.
 - 작업은 GitHub Issue 기준으로 추적하고, 이슈 본문은 charter와 일치시킨다.
-- 진행 순서: `인테이크(charter) -> 이슈·브랜치·오늘할일 -> 자율 LOOP(Stage: 구현 -> 자기검증 -> 기록) -> 최종 보고서 -> PR(인간 검토)` 순서 절대 생략 금지.
-- 각 Stage 완료 후 charter 수용·검증 기준으로 OK/MISS를 자기검증한다. OK면 다음 Stage로 자동 진행하고, MISS면 같은 Stage 안에서 자기수정한다(charter 한도 N).
+- 진행 순서: `인테이크(charter) -> 이슈·브랜치·오늘할일 -> 자율 LOOP(Stage: 구현 -> 교차 모델 fresh 검증 -> 기록) -> 최종 보고서 -> PR(인간 검토)` 순서 절대 생략 금지.
+- 각 Stage 완료 후 구현자와 반대 provider(Claude 구현→Codex 검증, Codex 구현→Claude 검증)가 fresh session에서 charter 기준 OK/MISS를 판정한다. 같은 provider fallback은 금지한다. OK면 다음 Stage로 자동 진행하고, MISS면 같은 Stage 안에서 자기수정한다(charter 한도 N).
 - 자기수정 N회 실패 또는 charter급 사건(가정 붕괴, charter 변경 필요, 비가역·파괴적 위험, 가드레일 충돌, 전역 가드 도달)이면 LOOP를 멈추고 인간에게 에스컬레이션한다.
 - 범위는 charter 기준으로 판단한다. charter로도 판단 불가한 charter급 모호성만 에스컬레이션한다.
 - 사용자나 다른 작업자가 만든 변경은 되돌리지 않음
@@ -46,11 +46,11 @@
 
 규약은 문서로 막히지 않는다. 강제는 두 층이다(상세: [`mydocs/manual/ultra_loop_guide.md`](mydocs/manual/ultra_loop_guide.md) "강제 레이어").
 
-- **로컬 = tamper-evidence + 마찰(강제 아님)**: `.ultra-waterfall/bin/uw-gate`(charter-scope/verify-run/halt/doctor) + git hooks(`.ultra-waterfall/hooks/`) + Claude 전용 `.claude/settings.json` PreToolUse. `--no-verify`·`core.hooksPath`·settings 자기편집으로 우회 가능.
-- **권위 = merge 시점 CI**: `.github/workflows/uw-gate.yml`가 base ref의 `check-gates.sh`와 `uw-gate`로 `base..head`를 재검사한다(G3 scope / G4 append-only escalation·labeled→unlabeled·외부 User·현재 PR artifact·최신 HEAD approval / G5 BASE 직후 contract-only baseline MISS·HEAD PASS·mutant 주입 후 MISS·evidence blob). branch protection required check + `.github/CODEOWNERS` + stale approval 무효화 + least-priv 토큰이 trust-root.
+- **로컬 = tamper-evidence + 마찰(강제 아님)**: `.ultra-waterfall/bin/uw-gate`(charter-scope/verify-run/verify-envelope/halt/doctor) + `uw-verifier`(반대 provider fresh 호출·atomic envelope) + git hooks(`.ultra-waterfall/hooks/`) + Claude 전용 `.claude/settings.json` PreToolUse. `--no-verify`·`core.hooksPath`·settings 자기편집으로 우회 가능.
+- **권위 = merge 시점 CI**: `.github/workflows/uw-gate.yml`가 base ref의 `check-gates.sh`와 `uw-gate`로 `base..head`를 재검사한다(G3 scope / G4 append-only escalation·labeled→unlabeled·외부 User·현재 PR artifact·최신 HEAD approval / G5 BASE 직후 contract-only baseline MISS·HEAD PASS·mutant MISS·task-frozen config·opposite-provider·fresh probe envelope chain). branch protection required check + `.github/CODEOWNERS` + stale approval 무효화 + least-priv 토큰이 trust-root.
 
 행동 규칙:
-- 강제 정의 경로(`.ultra-waterfall/{bin,gate,hooks}/**`, `.github/workflows/uw-gate.yml`, `.github/CODEOWNERS`, `.claude/settings.json`)와 charter는 **LOOP 중 수정 금지**(charter급 에스컬레이션).
+- 강제 정의 경로(`.ultra-waterfall/{bin,gate,hooks}/**`, `.ultra-waterfall/verifier/{config,decision,envelope}.schema.json`, `.ultra-waterfall/verifier/prompt.md`, `.github/workflows/uw-gate.yml`, `.github/CODEOWNERS`, `.claude/settings.json`)와 charter는 **LOOP 중 수정 금지**(charter급 에스컬레이션). 사용자 `verifier/config.json`은 task 시작 전에만 바꾸고 시작 시 해시를 동결한다.
 - off-charter 변경·검증 약화·`--no-verify` 우회 금지. HALT 활성 중 done/PR 금지.
 - final-report는 `awaiting_merge`까지만 기록한다. `done`은 인간 merge 후 GitHub `MERGED`+`mergeCommit`에서 도출한다.
 - **에이전트 실행 토큰**은 merge·label remove·base push·workflow write **없이** 운영한다(self-merge·에스컬레이션 자가해제 불가 = G4 성립).
@@ -67,7 +67,7 @@
 - [`mydocs/manual/pr_process_guide.md`](mydocs/manual/pr_process_guide.md) — PR 처리 entrypoint(내부 task PR + 외부 기여 PR)
 - [`mydocs/manual/internal_pr_guide.md`](mydocs/manual/internal_pr_guide.md) — 내부 task PR 본문 작성(최종 게이트 산출물)
 - [`mydocs/manual/pr_command_guide.md`](mydocs/manual/pr_command_guide.md) — PR 생성 명령·문서 링크 규칙
-- [`mydocs/manual/agent_autonomy_charter_discipline.md`](mydocs/manual/agent_autonomy_charter_discipline.md) — 자율 실행과 charter 경계·자기검증 규율
+- [`mydocs/manual/agent_autonomy_charter_discipline.md`](mydocs/manual/agent_autonomy_charter_discipline.md) — 자율 실행과 charter 경계·교차 모델 검증 규율
 - {PROJECT_SPECIFIC_REQUIRED_DOCUMENTS}
 
 ## Agent Skills

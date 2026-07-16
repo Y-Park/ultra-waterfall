@@ -20,9 +20,9 @@ Stage: 1
 
 해당 없음(코드 수정). 공개 시그니처 `complete(self, i)` 보존, `add()`/`pending()` 동작 불변.
 
-## 검증 결과 (독립 검증 게이트)
+## 검증 결과 (교차 모델 fresh 게이트)
 
-구현자와 분리된 독립 검증이 **깨끗한 체크아웃에서** charter 고정 명령을 재실행하고(보고 로그 불신), 추가로 적대 프로브를 던졌다.
+Codex 구현자와 반대편인 Claude 검증자가 새 비영속 session의 disposable candidate에서 charter 고정 명령을 재실행하고(보고 로그 불신), `uw-probe`로 추가 적대 프로브를 던졌다.
 
 실행 명령(charter 검증 기준과 동일):
 
@@ -31,20 +31,24 @@ sh verify/ac1.sh
 git diff --check
 ```
 
-원문 출력 로그: `task_m100_42_stage1.log` (해시: `sha256:<로그 해시>`)
+원문 출력 로그: `task_m100_42_stage1_<candidate12>.log` (해시: `sha256:<로그 해시>`)
+
+| 구현자 | 검증자 | model / effort | config hash | envelope chain head |
+|---|---|---|---|---|
+| codex | claude | sonnet / high | `sha256:<config>` | `task_m100_42_stage1_<candidate12>_<run>.verifier.json` |
 
 AC별 판정:
 
-| AC | 결과 | 근거(핵심 출력) | 독립 검증자 |
+| AC | 결과 | 근거(핵심 출력) | 교차 모델 검증자 |
 |---|---|---|---|
-| AC1 | OK | `verify/ac1.sh` → `OK` exit 0; `git diff --check` 무출력 | subagent (fresh checkout) |
+| AC1 | OK | frozen 로그 + verifier envelope/probe hash 일치 | Claude sonnet (fresh) |
 
 ### red-first / teeth 재확인
 
 - **red-first**: 수정 전 baseline에서 `verify/ac1.sh` → `MISS: complete(-1) no raise` exit 1 (검증이 미작업을 실제로 잡음).
 - **teeth**: 별도 checkout에서 `verify/ac1.mutant.sh`가 upper-bound만 검사하는 약화 가드를 주입(exit 0)한 뒤 `verify/ac1.sh` → exit 1. 음수 래핑을 통과시키는 약한 수정도 frozen 검증이 잡아냄을 입증.
 
-### 독립 적대 프로브 (동결 명령 외 추가 공격)
+### 외부 적대 프로브 (동결 명령 외 추가 공격)
 
 검증자가 동결 명령 외 스스로 던진 입력:
 

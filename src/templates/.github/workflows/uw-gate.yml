@@ -4,7 +4,7 @@ name: uw-gate
 #   1) 이 워크플로의 'uw-gate' job을 {BASE_BRANCH} branch protection의 required status check로 지정
 #   2) repository ruleset의 require-workflows로 pin(선호) — head가 워크플로 자체를 못 바꾸게
 #   3) 에이전트 실행 토큰에서 merge·label remove·base push·workflow write 박탈(least-priv)
-#   4) CODEOWNERS가 .github/**·.ultra-waterfall/{bin,gate,hooks}/**·*charter*를 보호
+#   4) CODEOWNERS가 .github/**·.ultra-waterfall/{bin,gate,hooks}/**·verifier 계약·*charter*를 보호
 # 위 미설정 시 게이트는 honor-system으로 붕괴한다(uw-gate doctor가 이를 LOUD FAIL시킨다).
 
 on:

@@ -54,7 +54,7 @@
 | `plans/archives/` | 완료된 계획서 보관 | merge 후 정리 시 사용 |
 | `working/` | 단계별 완료 보고서 (`_stage{N}.md`) | 최종 보고서는 두지 않는다 |
 | `report/` | 최종 결과보고서 (`_report.md`) + 장기 보관 보고서 | 최종 보고서는 반드시 이 폴더 |
-| `feedback/` | 자기검토(self-review)·자기수정 기록, 인간 PR 리뷰 피드백 | 자율 LOOP의 자기검증/수정 사유와 최종 게이트 리뷰를 보존 |
+| `feedback/` | 교차 모델 MISS·자기수정 기록, 인간 PR 리뷰 피드백 | 자율 LOOP의 검증/수정 사유와 최종 게이트 리뷰를 보존 |
 | `tech/` | 기술 조사, 구조/스펙 분석 | 재사용 가능한 조사 근거, 대안 비교, 공식화 전 초안 |
 | `manual/` | 운영 매뉴얼, 가이드 | ultra-waterfall 운영 절차, 에이전트 규칙, 반복 적용되는 작업 기준 |
 | `troubleshootings/` | 트러블슈팅, 재발 방지 기록 | 해결 과정과 함정을 남기는 폴더 |
@@ -110,7 +110,7 @@ manual 본문에서 분리해야 하는 내용:
 
 | 내용 | 위치 |
 |---|---|
-| 내부 task의 단계 결과와 자기검증 근거 | `mydocs/working/` |
+| 내부 task의 단계 결과와 교차 모델 검증 근거 | `mydocs/working/` |
 | 내부 task의 최종 결과와 장기 보관 보고 | `mydocs/report/` |
 | 재사용 가능한 기술 조사와 설계 판단 | `mydocs/tech/` |
 | 실패 증상, 원인, 해결, 재발 방지 기록 | `mydocs/troubleshootings/` |

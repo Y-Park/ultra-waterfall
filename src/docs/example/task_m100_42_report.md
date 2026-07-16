@@ -37,7 +37,13 @@ charter 전 수용 기준 통합 검증. 종료 조건 = 전 AC OK(MISS 0).
 
 | AC | 검증 명령 | 결과 | 근거 |
 |---|---|---|---|
-| AC1 | `sh verify/ac1.sh` | OK (exit 0) | Stage 1 독립 검증 + 적대 프로브 통과. teeth(`ac1.mutant.sh`) 입증됨 |
+| AC1 | `sh verify/ac1.sh` | OK (exit 0) | Stage 1 교차 모델 fresh 검증 + 적대 프로브 통과. teeth(`ac1.mutant.sh`) 입증됨 |
+
+### 최종 교차 모델 검증
+
+- 구현자 Codex → 검증자 Claude sonnet/high, task-frozen config hash 일치.
+- Stage 세션을 resume하지 않은 별도 final fresh 호출.
+- final envelope chain과 `uw-probe` 로그: OK.
 
 - 통합 검증: MISS 0건 → 종료 조건 충족.
 - charter 해시 == baseline(골대 이동 없음).

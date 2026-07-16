@@ -13,6 +13,7 @@
 #   uw-gate charter-scope (--staged | --range <base>...<head>) [--charter <path>]
 #   uw-gate lint-fence [--charter <path>]   # scope-fence degenerate(빈/전역 allow) 거부
 #   uw-gate verify-run <ac-id> --log <path> -- <cmd...>
+#   uw-gate verify-envelope --task <N> [--ref <git-ref>]
 #   uw-gate halt "<reason>"        # .ultra-waterfall/HALT 세팅(마찰)
 #   uw-gate halt-check             # HALT 활성이면 비-0
 #   uw-gate merge-fact [json-file] # MERGED + non-null mergeCommit 외에는 비-0
@@ -29,6 +30,10 @@ PROTECTED='
 .ultra-waterfall/bin/*
 .ultra-waterfall/gate/*
 .ultra-waterfall/hooks/*
+.ultra-waterfall/verifier/config.schema.json
+.ultra-waterfall/verifier/decision.schema.json
+.ultra-waterfall/verifier/envelope.schema.json
+.ultra-waterfall/verifier/prompt.md
 .github/workflows/uw-gate.yml
 .github/CODEOWNERS
 .claude/settings.json
@@ -42,6 +47,7 @@ PROTECTED='
 FRAMEWORK_MANAGED='
 .ultra-waterfall/task-*.json
 .ultra-waterfall/verify/*
+.ultra-waterfall/verifier/config.json
 .ultra-waterfall/version.json
 .ultra-waterfall/HALT
 '
@@ -203,6 +209,333 @@ cmd_verify_run() {
   return $rc
 }
 
+cmd_verify_envelope() {
+  task=""; ref=HEAD
+  while [ $# -gt 0 ]; do
+    case "$1" in
+      --task) [ -n "${2:-}" ] || die "verify-envelope: --task <N> 필요"; task=$2; shift 2 ;;
+      --ref) [ -n "${2:-}" ] || die "verify-envelope: --ref <git-ref> 필요"; ref=$2; shift 2 ;;
+      *) die "verify-envelope: unknown arg '$1'" ;;
+    esac
+  done
+  case "$task" in ''|*[!0-9]*) die "verify-envelope: numeric --task required" ;; esac
+  python3 - "$ROOT" "$task" "$ref" <<'PY'
+import datetime as dt
+import hashlib
+import json
+import pathlib
+import re
+import subprocess
+import sys
+import uuid
+
+root, task_text, ref_input = sys.argv[1:]
+task = int(task_text)
+providers = {"codex", "claude"}
+opposite = {"codex": "claude", "claude": "codex"}
+sha_re = re.compile(r"^[0-9a-f]{64}$")
+oid_re = re.compile(r"^[0-9a-f]{40,64}$")
+probe_id_re = re.compile(r"^[A-Za-z][A-Za-z0-9_-]*$")
+
+
+def fail(message):
+    print(f"verify-envelope: FAIL: {message}", file=sys.stderr)
+    raise SystemExit(1)
+
+
+def git(*args, binary=False, allow_failure=False):
+    result = subprocess.run(
+        ["git", "-C", root, *args],
+        stdout=subprocess.PIPE,
+        stderr=subprocess.PIPE,
+        text=not binary,
+        check=False,
+    )
+    if result.returncode and not allow_failure:
+        error = result.stderr.decode(errors="replace") if binary else result.stderr
+        fail(f"git {' '.join(args)}: {error.strip()}")
+    return result if allow_failure else result.stdout
+
+
+def exact(value, keys, label):
+    if not isinstance(value, dict) or set(value) != set(keys):
+        fail(f"{label} keys mismatch")
+
+
+def safe_path(value, label, prefix=None):
+    if not isinstance(value, str) or not value:
+        fail(f"{label} must be a non-empty path")
+    path = pathlib.PurePosixPath(value)
+    if path.is_absolute() or ".." in path.parts or not path.parts:
+        fail(f"{label} must be repository-relative")
+    normalized = path.as_posix()
+    if prefix and not normalized.startswith(prefix):
+        fail(f"{label} must be under {prefix}")
+    return normalized
+
+
+def valid_sha(value, label, prefixed=False):
+    if prefixed:
+        if not isinstance(value, str) or not value.startswith("sha256:"):
+            fail(f"{label} must use sha256:<hex>")
+        value = value[7:]
+    if not isinstance(value, str) or not sha_re.fullmatch(value):
+        fail(f"{label} is malformed")
+    return value
+
+
+def object_bytes(ref, path):
+    output = git("show", f"{ref}:{path}", binary=True)
+    return output
+
+
+def object_json(ref, path, label):
+    try:
+        value = json.loads(object_bytes(ref, path))
+    except json.JSONDecodeError as exc:
+        fail(f"{label} invalid JSON: {exc}")
+    if not isinstance(value, dict):
+        fail(f"{label} must be an object")
+    return value
+
+
+def sha256(data):
+    return hashlib.sha256(data).hexdigest()
+
+
+def immutable_evidence(path):
+    commits = str(git("log", "--format=%H", ref, "--", path)).split()
+    if len(commits) != 1:
+        fail(f"evidence path must be add-only in exactly one commit: {path}")
+    status = str(git("diff-tree", "--root", "--no-commit-id", "--name-status", "-r", commits[0], "--", path)).splitlines()
+    if status != [f"A\t{path}"]:
+        fail(f"evidence path was not introduced atomically: {path}")
+
+
+ref = str(git("rev-parse", f"{ref_input}^{{commit}}")).strip()
+state_path = f".ultra-waterfall/task-{task}.json"
+state = object_json(ref, state_path, "loop-state")
+if state.get("schemaVersion") != "0.4.0" or state.get("issue") != task:
+    fail("active loop-state must be schemaVersion 0.4.0 for the requested task")
+
+verifier = state.get("verifier")
+verifier_keys = {"mode", "implementerProvider", "provider", "configPath", "configHash", "model", "effort", "chainHead"}
+exact(verifier, verifier_keys, "loop-state verifier")
+implementer = verifier["implementerProvider"]
+provider = verifier["provider"]
+if implementer not in providers or provider != opposite.get(implementer) or verifier["mode"] != "opposite-provider":
+    fail("loop-state provider pairing is not opposite-provider")
+config_path = safe_path(verifier["configPath"], "config path")
+config_bytes = object_bytes(ref, config_path)
+config_hash = sha256(config_bytes)
+if valid_sha(verifier["configHash"], "configHash", prefixed=True) != config_hash:
+    fail("task-frozen config hash mismatch")
+try:
+    config = json.loads(config_bytes)
+except json.JSONDecodeError as exc:
+    fail(f"config invalid JSON: {exc}")
+settings = config.get("providers", {}).get(provider, {}) if isinstance(config, dict) else {}
+if settings.get("model") != verifier["model"] or settings.get("effort") != verifier["effort"]:
+    fail("task-frozen model/effort mismatch")
+
+last = state.get("lastVerification")
+last_keys = {"phase", "stage", "result", "by", "candidate", "provider", "model", "evidence"}
+exact(last, last_keys, "lastVerification")
+if last["result"] != "OK" or last["by"] != "cross-model":
+    fail("lastVerification must be cross-model OK")
+if last["provider"] != provider or last["model"] != verifier["model"]:
+    fail("lastVerification provider/model mismatch")
+
+head = verifier["chainHead"]
+exact(head, {"path", "sha256"}, "verifier.chainHead")
+head_path = safe_path(head["path"], "chain head path", "mydocs/working/")
+head_sha = valid_sha(head["sha256"], "chain head sha256")
+evidence = last["evidence"]
+if not isinstance(evidence, str) or "#git:" not in evidence:
+    fail("lastVerification evidence must be path#git:<blob>")
+evidence_path, evidence_blob = evidence.rsplit("#git:", 1)
+if evidence_path != head_path or not oid_re.fullmatch(evidence_blob):
+    fail("lastVerification evidence does not identify the chain head")
+actual_blob = str(git("rev-parse", f"{ref}:{head_path}")).strip()
+if actual_blob != evidence_blob:
+    fail("lastVerification evidence blob mismatch")
+
+charter_path = safe_path(state.get("charter"), "loop-state charter")
+state_charter_hash = state.get("charterHash")
+if not isinstance(state_charter_hash, str) or not state_charter_hash.startswith("sha256:") or not oid_re.fullmatch(state_charter_hash[7:]):
+    fail("loop-state charterHash must bind a git object id")
+charter_blob = str(git("rev-parse", f"{ref}:{charter_path}")).strip()
+if state_charter_hash != f"sha256:{charter_blob}":
+    fail("loop-state charterHash mismatch")
+milestone = state.get("milestone")
+if not isinstance(milestone, str) or not re.fullmatch(r"m[0-9]+", milestone):
+    fail("loop-state milestone must use m<digits>")
+
+seen_paths = set()
+seen_runs = set()
+seen_candidates = set()
+chain = []
+current = {"path": head_path, "sha256": head_sha}
+while current is not None:
+    if len(chain) >= 256:
+        fail("envelope chain exceeds 256 entries")
+    exact(current, {"path", "sha256"}, "chain reference")
+    path = safe_path(current["path"], "envelope path", "mydocs/working/")
+    expected_sha = valid_sha(current["sha256"], "envelope sha256")
+    if path in seen_paths:
+        fail("envelope chain cycle or duplicate path")
+    seen_paths.add(path)
+    raw = object_bytes(ref, path)
+    immutable_evidence(path)
+    if sha256(raw) != expected_sha:
+        fail(f"envelope hash mismatch: {path}")
+    try:
+        envelope = json.loads(raw)
+    except json.JSONDecodeError as exc:
+        fail(f"invalid envelope JSON {path}: {exc}")
+    root_keys = {
+        "schemaVersion", "task", "phase", "stage", "candidate", "charter", "config",
+        "implementer", "verifier", "invocation", "previousEnvelope", "frozenVerification",
+        "probes", "decision", "status",
+    }
+    exact(envelope, root_keys, f"envelope {path}")
+    if envelope["schemaVersion"] != "0.1.0" or envelope["task"] != task:
+        fail(f"envelope schema/task mismatch: {path}")
+    phase, stage = envelope["phase"], envelope["stage"]
+    if phase not in {"stage", "final"} or (phase == "stage" and (not isinstance(stage, int) or stage < 1)) or (phase == "final" and stage is not None):
+        fail(f"envelope phase/stage mismatch: {path}")
+    candidate = envelope["candidate"]
+    if not isinstance(candidate, str) or not oid_re.fullmatch(candidate) or candidate in seen_candidates:
+        fail(f"invalid or duplicate candidate: {candidate!r}")
+    seen_candidates.add(candidate)
+    if git("cat-file", "-e", f"{candidate}^{{commit}}", allow_failure=True).returncode:
+        fail(f"candidate commit is unavailable: {candidate}")
+    if git("merge-base", "--is-ancestor", candidate, ref, allow_failure=True).returncode:
+        fail(f"candidate is not reachable from gate ref: {candidate}")
+    expected_name = rf"^mydocs/working/task_{re.escape(milestone)}_{task}_{'stage' + str(stage) if phase == 'stage' else 'final'}_{candidate[:12]}_[0-9a-f]{{8}}\.verifier\.json$"
+    if not re.fullmatch(expected_name, path):
+        fail(f"envelope path does not bind phase/candidate: {path}")
+
+    exact(envelope["charter"], {"path", "sha256"}, "envelope charter")
+    if safe_path(envelope["charter"]["path"], "envelope charter path") != charter_path:
+        fail("envelope charter path mismatch")
+    charter_bytes = object_bytes(candidate, charter_path)
+    if valid_sha(envelope["charter"]["sha256"], "envelope charter sha256") != sha256(charter_bytes):
+        fail("envelope charter hash mismatch")
+    exact(envelope["config"], {"path", "sha256"}, "envelope config")
+    if safe_path(envelope["config"]["path"], "envelope config path") != config_path or valid_sha(envelope["config"]["sha256"], "envelope config sha256") != config_hash:
+        fail("envelope config binding mismatch")
+    exact(envelope["implementer"], {"provider"}, "envelope implementer")
+    exact(envelope["verifier"], {"provider", "binary", "requestedModel", "requestedEffort", "cliVersion"}, "envelope verifier")
+    if envelope["implementer"]["provider"] != implementer or envelope["verifier"]["provider"] != provider:
+        fail("envelope provider pairing mismatch")
+    if envelope["verifier"]["requestedModel"] != verifier["model"] or envelope["verifier"]["requestedEffort"] != verifier["effort"]:
+        fail("envelope model/effort mismatch")
+    for field in ("binary", "cliVersion"):
+        if not isinstance(envelope["verifier"][field], str) or not envelope["verifier"][field]:
+            fail(f"envelope verifier {field} missing")
+
+    invocation = envelope["invocation"]
+    exact(invocation, {"runId", "startedAt", "completedAt", "fresh", "persistedSession", "bundleSha256", "attempt"}, "envelope invocation")
+    try:
+        uuid.UUID(invocation["runId"])
+        started = dt.datetime.fromisoformat(invocation["startedAt"].replace("Z", "+00:00"))
+        completed = dt.datetime.fromisoformat(invocation["completedAt"].replace("Z", "+00:00"))
+    except (ValueError, AttributeError, TypeError) as exc:
+        fail(f"invalid invocation identity/time: {exc}")
+    if invocation["runId"] in seen_runs or completed < started:
+        fail("duplicate runId or reversed invocation time")
+    seen_runs.add(invocation["runId"])
+    if invocation["fresh"] is not True or invocation["persistedSession"] is not False:
+        fail("envelope does not prove a fresh non-persistent request")
+    valid_sha(invocation["bundleSha256"], "bundle sha256")
+    if invocation["attempt"] not in {1, 2}:
+        fail("invocation attempt must be 1 or 2")
+
+    frozen = envelope["frozenVerification"]
+    exact(frozen, {"log", "sha256", "exit"}, "frozenVerification")
+    suffix = f"stage{stage}_{candidate[:12]}.log" if phase == "stage" else f"final_{candidate[:12]}.log"
+    expected_frozen = f"mydocs/working/task_{milestone}_{task}_{suffix}"
+    if safe_path(frozen["log"], "frozen log", "mydocs/working/") != expected_frozen or frozen["exit"] != 0:
+        fail("frozen verification path/exit mismatch")
+    frozen_bytes = object_bytes(ref, expected_frozen)
+    immutable_evidence(expected_frozen)
+    if valid_sha(frozen["sha256"], "frozen log sha256") != sha256(frozen_bytes):
+        fail("frozen verification hash mismatch")
+    exits = re.findall(rb"^exit: ([0-9]+)$", frozen_bytes, re.M)
+    if not exits or any(value != b"0" for value in exits):
+        fail("frozen verification contains missing/nonzero result")
+
+    decision = envelope["decision"]
+    exact(decision, {"verdict", "drift", "summary", "findings", "probes"}, "decision")
+    if decision["verdict"] not in {"OK", "MISS"} or decision["drift"] not in {"OK", "MISS"} or envelope["status"] != decision["verdict"]:
+        fail("decision/status mismatch")
+    if not isinstance(decision["summary"], str) or not decision["summary"] or not isinstance(decision["findings"], list) or not isinstance(decision["probes"], list):
+        fail("decision structure is incomplete")
+    if envelope["status"] == "OK" and (decision["drift"] != "OK" or decision["findings"]):
+        fail("OK decision contains drift/findings")
+    probes = envelope["probes"]
+    if not isinstance(probes, list) or not probes or len(probes) != len(decision["probes"]):
+        fail("probe evidence is missing or does not match the decision")
+    decision_by_id = {}
+    for item in decision["probes"]:
+        exact(item, {"id", "purpose", "result"}, "decision probe")
+        if not probe_id_re.fullmatch(item["id"]) or item["id"] in decision_by_id or item["result"] not in {"no-violation", "violation", "inconclusive"}:
+            fail("decision probe is invalid or duplicated")
+        decision_by_id[item["id"]] = item
+    evidence_ids = set()
+    for probe in probes:
+        exact(probe, {"id", "log", "sha256", "exit", "purpose", "result"}, "probe evidence")
+        if probe["id"] in evidence_ids:
+            fail("probe evidence id is duplicated")
+        evidence_ids.add(probe["id"])
+        item = decision_by_id.get(probe["id"])
+        if not item or probe["purpose"] != item["purpose"] or probe["result"] != item["result"] or not isinstance(probe["exit"], int):
+            fail("probe evidence/decision mismatch")
+        expected_probe = path.removesuffix(".verifier.json") + f".probes/{probe['id']}.log"
+        if safe_path(probe["log"], "probe log", "mydocs/working/") != expected_probe:
+            fail("probe log path does not bind to its envelope")
+        probe_bytes = object_bytes(ref, expected_probe)
+        immutable_evidence(expected_probe)
+        if valid_sha(probe["sha256"], "probe sha256") != sha256(probe_bytes):
+            fail("probe log hash mismatch")
+        marker = f"## uw-cross-model-probe id={probe['id']}".encode()
+        match = re.search(rb"^exit: (-?[0-9]+)$", probe_bytes, re.M)
+        if marker not in probe_bytes.splitlines() or not match or int(match.group(1)) != probe["exit"]:
+            fail("probe log marker/exit mismatch")
+    if evidence_ids != set(decision_by_id):
+        fail("probe evidence does not cover every decision probe")
+    if envelope["status"] == "OK" and any(p["result"] != "no-violation" for p in probes):
+        fail("OK envelope contains a non-clear probe")
+
+    chain.append((path, envelope, started, completed))
+    previous = envelope["previousEnvelope"]
+    if previous is not None:
+        exact(previous, {"path", "sha256"}, "previousEnvelope")
+    current = previous
+
+tree_paths = str(git("ls-tree", "-r", "--name-only", ref, "--", "mydocs/working")).splitlines()
+prefix = f"mydocs/working/task_{milestone}_{task}_"
+tracked_envelopes = {path for path in tree_paths if path.startswith(prefix) and path.endswith(".verifier.json")}
+historical_paths = str(git("log", "--format=", "--name-only", ref, "--", "mydocs/working")).splitlines()
+historical_envelopes = {path for path in historical_paths if path.startswith(prefix) and path.endswith(".verifier.json")}
+if seen_paths != tracked_envelopes or tracked_envelopes != historical_envelopes:
+    fail("envelope chain is truncated, orphaned, or contains deleted history")
+
+if last["candidate"] != chain[0][1]["candidate"] or last["phase"] != chain[0][1]["phase"] or last["stage"] != chain[0][1]["stage"]:
+    fail("lastVerification does not match the chain head envelope")
+if chain[0][1]["status"] != "OK":
+    fail("chain head verdict is not OK")
+if state.get("state") == "awaiting_merge" and chain[0][1]["phase"] != "final":
+    fail("awaiting_merge requires a final envelope at chain head")
+chronological = list(reversed(chain))
+for older, newer in zip(chronological, chronological[1:]):
+    if older[3] > newer[2]:
+        fail("envelope chain invocation times are reordered")
+print(f"verify-envelope: OK task={task} ref={ref} entries={len(chain)} head={head_path}")
+PY
+}
+
 cmd_halt() {
   reason=${1:-"unspecified"}
   mkdir -p "$UW"
@@ -312,10 +645,11 @@ case "$sub" in
   charter-scope) cmd_charter_scope "$@" ;;
   lint-fence)    cmd_lint_fence "$@" ;;
   verify-run)    cmd_verify_run "$@" ;;
+  verify-envelope) cmd_verify_envelope "$@" ;;
   halt)          cmd_halt "$@" ;;
   halt-check)    cmd_halt_check "$@" ;;
   merge-fact)    cmd_merge_fact "$@" ;;
   doctor)        cmd_doctor "$@" ;;
   install-hooks) cmd_install_hooks "$@" ;;
-  *) echo "uw-gate: unknown subcommand '${sub:-}' (charter-scope|lint-fence|verify-run|halt|halt-check|merge-fact|doctor|install-hooks)" >&2; exit 2 ;;
+  *) echo "uw-gate: unknown subcommand '${sub:-}' (charter-scope|lint-fence|verify-run|verify-envelope|halt|halt-check|merge-fact|doctor|install-hooks)" >&2; exit 2 ;;
 esac

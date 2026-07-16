@@ -21,14 +21,16 @@
 5. manifest 매핑대로 복사한다.
    - `src/templates/AGENTS1.md -> AGENTS.md`, `src/templates/CLAUDE1.md -> CLAUDE.md`
    - `src/templates/.github/ISSUE_TEMPLATE/task.yml`, `src/templates/.github/pull_request_template.md`
-   - 강제 레이어: `src/templates/.ultra-waterfall/{bin/uw-gate, gate/check-gates.sh, hooks/{pre-commit,pre-push,claude-guard.sh}}`, `src/templates/.github/{workflows/uw-gate.yml, CODEOWNERS}`, `src/templates/.claude/settings.json`
+   - 강제·검증 레이어: `src/templates/.ultra-waterfall/{bin/{uw-gate,uw-verifier}, verifier/{config.json,config.schema.json,decision.schema.json,envelope.schema.json,prompt.md}, gate/check-gates.sh, hooks/{pre-commit,pre-push,claude-guard.sh}}`, `src/templates/.github/{workflows/uw-gate.yml, CODEOWNERS}`, `src/templates/.claude/settings.json`
    - `src/templates/mydocs/_templates`, `src/templates/mydocs/manual`, `src/templates/mydocs/skills` 디렉터리
    - 각 작업 기억 폴더의 `.gitkeep`과 `README.md`
-6. 강제 레이어 실행권한 부여: `chmod +x .ultra-waterfall/bin/uw-gate .ultra-waterfall/gate/check-gates.sh .ultra-waterfall/hooks/*`
+6. 강제 레이어 실행권한 부여: `chmod +x .ultra-waterfall/bin/uw-gate .ultra-waterfall/bin/uw-verifier .ultra-waterfall/gate/check-gates.sh .ultra-waterfall/hooks/*`
 7. 심볼릭 링크 생성: `.agents/skills -> ../mydocs/skills`, `.claude/skills -> ../mydocs/skills`
 8. `.ultra-waterfall/version.json` 생성. `frameworkVersion`, `source`(github-repo), `sourceRef`(적용 시점 `main` 또는 commit SHA), `installedAt`, `updatedAt`을 기록한다.
 9. placeholder 치환 (`{REPO_SLUG}`, `{REPO_NAME}`, `{BASE_BRANCH}`, `{PR_TEMPLATE_PATH}`, `{CODEOWNER}` 등). `{CODEOWNER}`(`.github/CODEOWNERS`)는 강제 정의·charter 변경에 인간 review를 강제하는 실효 owner이므로 실제 메인테이너 핸들/팀으로 반드시 치환한다(미치환 시 `uw-gate doctor`가 FAIL).
 10. 로컬 tamper-evidence 배선: `.ultra-waterfall/bin/uw-gate install-hooks`(각 클론에서 1회. fresh clone은 `core.hooksPath` UNSET=fail-OPEN이므로 진짜 floor는 CI뿐).
+    - `.ultra-waterfall/verifier/config.json`은 `preserve` 정책이다. 설치 시 없을 때만 만들고, 기존 binary/model/effort/timeout/Claude 예산 설정은 덮어쓰지 않는다.
+    - Codex와 Claude CLI를 모두 설치·인증한다. 실제 task-start는 구현 주체를 명시한 `uw-verifier doctor --implementer codex|claude`가 반대편 CLI만 fail-close 진단하고 effective 설정을 동결한다.
 11. 대상 프로젝트 고유 규칙은 `AGENTS.md`의 지정 섹션(`{PROJECT_SPECIFIC_RULES}` 등)에만 추가한다.
 12. `git diff`로 변경을 확인하고 적용 결과를 보고한다.
 

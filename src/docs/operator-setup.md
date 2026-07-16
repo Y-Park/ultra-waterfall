@@ -21,7 +21,7 @@ ultra-waterfall의 강제 레이어에서 **유일한 진짜 하드 강제는 me
 PR head가 `uw-gate.yml` 자체를 바꿔 게이트를 무력화하는 구멍을 막는다. GitHub → Settings → Rules → Rulesets → **Require workflows to pass** 로 `uw-gate.yml`을 **base/org 수준에서 pin**한다. (불가하면 차선: 워크플로를 `pull_request_target`로 두고 base ref 로직 사용 — 이미 `uw-gate.yml`이 base-ref `check-gates.sh`를 쓴다.)
 
 ### 4. CODEOWNERS 발효
-`.github/CODEOWNERS`의 `{CODEOWNER}`를 실제 메인테이너 핸들/팀으로 치환하고 커밋. 1의 "Require review from Code Owners"가 켜져야, 강제 정의(`.ultra-waterfall/{bin,gate,hooks}/**`, `uw-gate.yml`, `CODEOWNERS`, `.claude/settings.json`)·charter 변경이 **비-에이전트 인간 승인** 없이는 merge되지 못한다(에이전트의 자기 목줄 풀기 차단).
+`.github/CODEOWNERS`의 `{CODEOWNER}`를 실제 메인테이너 핸들/팀으로 치환하고 커밋. 1의 "Require review from Code Owners"가 켜져야, 강제 정의(`.ultra-waterfall/{bin,gate,hooks}/**`, verifier schema/prompt, `uw-gate.yml`, `CODEOWNERS`, `.claude/settings.json`)·charter 변경이 **비-에이전트 인간 승인** 없이는 merge되지 못한다(에이전트의 자기 목줄 풀기 차단). 사용자 `verifier/config.json`은 보호 정의가 아니라 task-start hash freeze로 통제한다.
 
 ### 5. least-priv 에이전트 토큰 (G4의 핵심)
 자율 에이전트가 쓰는 토큰(GitHub App 설치 또는 PAT)에서 다음을 **박탈**한다:
@@ -36,6 +36,17 @@ PR head가 `uw-gate.yml` 자체를 바꿔 게이트를 무력화하는 구멍을
 ```
 > 주의: fresh clone은 `core.hooksPath`가 UNSET(fail-OPEN)이다. 각 클론에서 1회 실행해야 하며, 그래도 진짜 신뢰 floor는 CI뿐이다.
 
+## 교차 모델 verifier 설정
+
+Codex와 Claude CLI를 모두 설치·인증한 뒤 `.ultra-waterfall/verifier/config.json`에서 각 binary, model, effort와 timeout(선택: Claude 예산)을 정한다. 설정은 task 시작 시 동결되므로 변경은 진행 중 task가 없을 때 하고 다음 task부터 적용한다.
+
+```sh
+.ultra-waterfall/bin/uw-verifier doctor --implementer codex   # verifier=claude
+.ultra-waterfall/bin/uw-verifier doctor --implementer claude  # verifier=codex
+```
+
+같은 provider fallback은 없다. CLI 미설치·미인증, timeout, 비정상 structured output은 fail-close한다.
+
 ## 검증
 ```sh
 .ultra-waterfall/bin/uw-gate doctor
@@ -48,4 +59,4 @@ PR head가 `uw-gate.yml` 자체를 바꿔 게이트를 무력화하는 구멍을
 - **sandbox 파일시스템 deny**: `.claude/**`·`.ultra-waterfall/**` write 차단(macOS/Linux). Codex엔 등가물 없음.
 
 ## 정직한 한계
-이 5가지를 다 해도 남는 것: in-loop 로컬 우회(증거만 남음), **silent-no-escalate**(산출물 0 → 탐지 불가), on-charter 파일 내 의미론 드리프트, *약한*(mutant 미모델) 검증, 그리고 **인간 reviewer의 rubber-stamp**. 최종 trust-root는 결국 *config/charter/fence diff를 실제로 읽는 인간*이다. 현실 도달점은 8→9이며 10이 아니다.
+이 5가지를 다 해도 남는 것: in-loop 로컬 우회(증거만 남음), **silent-no-escalate**(산출물 0 → 탐지 불가), on-charter 파일 내 의미론 드리프트, *약한*(mutant 미모델) 검증, envelope 작성 주체의 암호학적 미증명, 그리고 **인간 reviewer의 rubber-stamp**. 교차 모델은 상관 위험을 낮추지만 결함 감소를 보장하지 않는다. 최종 trust-root는 결국 *config/charter/fence diff를 실제로 읽는 인간*이다. 현실 도달점은 8→9이며 10이 아니다.

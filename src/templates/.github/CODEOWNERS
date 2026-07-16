@@ -9,6 +9,10 @@
 /.ultra-waterfall/bin/               {CODEOWNER}
 /.ultra-waterfall/gate/              {CODEOWNER}
 /.ultra-waterfall/hooks/             {CODEOWNER}
+/.ultra-waterfall/verifier/config.schema.json   {CODEOWNER}
+/.ultra-waterfall/verifier/decision.schema.json {CODEOWNER}
+/.ultra-waterfall/verifier/envelope.schema.json {CODEOWNER}
+/.ultra-waterfall/verifier/prompt.md             {CODEOWNER}
 /.claude/settings.json              {CODEOWNER}
 
 # 계약(charter)·범위·검증 정의

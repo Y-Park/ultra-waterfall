@@ -1,0 +1,19 @@
+{
+  "$schema": "./config.schema.json",
+  "schemaVersion": "0.1.0",
+  "mode": "opposite-provider",
+  "providers": {
+    "codex": {
+      "binary": "codex",
+      "model": "gpt-5.6-sol",
+      "effort": "high"
+    },
+    "claude": {
+      "binary": "claude",
+      "model": "sonnet",
+      "effort": "high",
+      "maxBudgetUsd": null
+    }
+  },
+  "timeoutSeconds": 1800
+}

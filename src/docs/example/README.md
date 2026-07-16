@@ -16,7 +16,7 @@
 |---|---|---|---|
 | 1. 인테이크 | [`task_m100_42_charter.md`](task_m100_42_charter.md) | `task-intake` (인간 접점 1) | 추상 의도 → 잠긴 charter. scope fence, AC, 검증표(red-first/teeth), `uw:verify-acs` 선언 |
 | 2. 착수 | [`task_m100_42_impl.md`](task_m100_42_impl.md) | `task-start` (자동) | charter → Stage 분해. 검증 명령을 그대로 옮겨 고정 |
-| 3. LOOP 1회전 | [`task_m100_42_stage1.md`](task_m100_42_stage1.md) | Stage 종료 (자동) | 구현 → 독립 검증(refute-first + 적대 프로브) → OK/MISS 기록 |
+| 3. LOOP 1회전 | [`task_m100_42_stage1.md`](task_m100_42_stage1.md) | Stage 종료 (자동) | 구현 → 반대 provider fresh 검증(refute-first + 적대 프로브) → envelope·OK/MISS 기록 |
 | 4. 종료 | [`task_m100_42_report.md`](task_m100_42_report.md) | 전 AC OK (자동) | 최종 보고서 + PR 게시(인간 접점 2) |
 
 ## G5 실행형 검증 (CI가 직접 재실행)
@@ -27,3 +27,5 @@ charter 잠금 시 인테이크가 emit하는 실행형 검증 짝:
 - `ac1.mutant.sh` — teeth injector(약화 가드 주입은 exit0, 이어서 frozen 검증이 MISS). [`verify/ac1.mutant.sh`](verify/ac1.mutant.sh).
 
 실제 task에선 이 두 파일이 `.ultra-waterfall/verify/task-{issue}/`에 놓인다. merge 시점 CI(`check-gates.sh` G5)는 별도 clone에서 mutant를 주입한 뒤 frozen 검증을 다시 실행한다.
+
+실제 0.4.0 task는 여기에 candidate별 frozen 로그, `*.probes/`, `*.verifier.json`과 loop-state의 envelope chain head를 추가한다. 이 예시는 사람이 읽는 문서 체인만 보여주며 model 호출 원문 파일을 흉내 내지는 않는다.

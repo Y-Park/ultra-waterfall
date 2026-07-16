@@ -38,6 +38,16 @@ GitHub Issue: [#{issue}](https://github.com/{REPO_SLUG}/issues/{issue})
 
 charter의 전 수용 기준에 대한 통합 검증 결과. 종료 조건은 모든 기준 OK(MISS 0건)이다.
 
+### 최종 교차 모델 검증
+
+| 구현자 | 검증자 | 요청 model / effort | config hash | final candidate | final envelope |
+|---|---|---|---|---|---|
+| codex/claude | claude/codex | `{model}` / `{effort}` | `sha256:{hash}` | `{commit SHA}` | `...final_*.verifier.json#git:{blob}` |
+
+- 새 비영속 세션: 예/아니오
+- 외부 적대 probe 로그: `{...final_*.probes/...}`
+- 누적 envelope chain 검증: OK/MISS
+
 | 수용 기준 | 결과 |
 |---|---|
 | {기준} | OK/MISS — {근거} |

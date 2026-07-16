@@ -26,3 +26,5 @@ __pycache__/
 /ULTRA_WATERFALL_적용_회고.md
 # 근본 문제 인벤토리(내부 AI 작업 입력) — 공개 제외
 /PROBLEM.md
+# 교차 모델 검증 계획서(로컬 분석 입력) — 공개 제외
+/uw_cross_model_verifier_plan.md

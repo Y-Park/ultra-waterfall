@@ -43,6 +43,8 @@ assert_has "$SKILLS/task-stage-report/SKILL.md" 'git commit-tree' \
   'AC2 candidate commit is created without moving the task branch'
 assert_has "$SKILLS/task-stage-report/SKILL.md" 'disposable bundle|disposable candidate' \
   'AC2 verifier receives the exact candidate through a disposable bundle'
+assert_has "$SKILLS/task-stage-report/SKILL.md" 'git commit-tree.*STAGE_TREE.*-p.*CANDIDATE_COMMIT' \
+  'AC2 verified candidate remains reachable as the Stage evidence parent'
 assert_has "$SKILLS/task-stage-report/SKILL.md" 'git diff --cached --quiet.*CANDIDATE_COMMIT' \
   'AC2 final index preserves candidate implementation blobs'
 assert_has "$SKILLS/task-stage-report/SKILL.md" "\:\(exclude\).*task-\{N\}\.json" \

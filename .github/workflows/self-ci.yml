@@ -29,6 +29,7 @@ jobs:
             src/templates/.ultra-waterfall/hooks/claude-guard.sh \
             test/e2e-gates.sh \
             test/e2e-lifecycle.sh \
+            test/e2e-verifier.sh \
             src/docs/example/verify/ac1.sh \
             src/docs/example/verify/ac1.mutant.sh; do
             if sh -n "$f"; then echo "ok   - sh -n $f"; else echo "FAIL - sh -n $f"; rc=1; fi
@@ -47,13 +48,28 @@ jobs:
             src/templates/.ultra-waterfall/hooks/pre-push \
             src/templates/.ultra-waterfall/hooks/claude-guard.sh \
             test/e2e-gates.sh \
-            test/e2e-lifecycle.sh
+            test/e2e-lifecycle.sh \
+            test/e2e-verifier.sh
+
+      - name: Verifier Python/JSON 계약 검사
+        run: |
+          python3 -m py_compile src/templates/.ultra-waterfall/bin/uw-verifier
+          python3 - <<'PY'
+          import json, pathlib
+          root = pathlib.Path("src/templates/.ultra-waterfall/verifier")
+          for name in ("config.json", "config.schema.json", "decision.schema.json", "envelope.schema.json"):
+              json.loads((root / name).read_text())
+          json.loads(pathlib.Path("src/templates/manifest.json").read_text())
+          PY
 
       - name: Workflow YAML parse
         run: ruby -e 'require "yaml"; %w[.github/workflows/self-ci.yml src/templates/.github/workflows/uw-gate.yml].each { |f| YAML.load_file(f) }'
 
-      - name: 강제 레이어 e2e (격리 repo 32시나리오, 하드 게이트)
+      - name: 강제 레이어 e2e (격리 repo 32단언, 하드 게이트)
         run: sh test/e2e-gates.sh
 
-      - name: Lifecycle 계약 e2e (29단언, 하드 게이트)
+      - name: Lifecycle 계약 e2e (37단언, 하드 게이트)
         run: sh test/e2e-lifecycle.sh
+
+      - name: 교차 모델 verifier e2e (fake CLI 28단언, 하드 게이트)
+        run: sh test/e2e-verifier.sh

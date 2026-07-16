@@ -1,6 +1,6 @@
 # 단계 보고서 템플릿
 
-이 파일은 `mydocs/working/task_{milestone}_{issue}_stage{stage}.md` 작성용 중앙 템플릿이다. 단계 보고서는 한 Stage의 구현, 자기검증, 잔여 위험, 다음 단계 영향을 기록하고 다음 Stage 자동 진입을 판정하기 위한 문서다.
+이 파일은 `mydocs/working/task_{milestone}_{issue}_stage{stage}.md` 작성용 중앙 템플릿이다. 단계 보고서는 한 Stage의 구현, 교차 모델 검증, 잔여 위험, 다음 단계 영향을 기록하고 다음 Stage 자동 진입을 판정하기 위한 문서다.
 
 GitHub Issue: [#{issue}](https://github.com/{REPO_SLUG}/issues/{issue})
 구현계획서: [`task_{milestone}_{issue}_impl.md`](../plans/task_{milestone}_{issue}_impl.md)

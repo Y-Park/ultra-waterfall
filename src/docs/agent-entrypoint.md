@@ -27,7 +27,7 @@ ultra-waterfall은 인간이 시작에서 방향만 잡아주고(인테이크) A
 2. manifest strict 범위(이것이 신규 적용의 charter 역할) 안에서 자율로 적용한다. 충돌 후보만 인간에게 보고한다.
 3. `.ultra-waterfall/version.json`을 생성하고 placeholder를 치환한다.
 4. `git diff`로 변경을 확인하고 적용 결과를 보고한다.
-5. 적용 후 실제 작업은 일반 ultra-waterfall LOOP로 전환한다: [`task-intake`](../templates/mydocs/skills/task-intake/SKILL.md)로 charter를 확정·잠금한 뒤 자율 LOOP(Stage → 자기검증 → 기록)를 돌고, 종료 시 최종 보고서와 PR로 마무리한다.
+5. 적용 후 실제 작업은 일반 ultra-waterfall LOOP로 전환한다: [`task-intake`](../templates/mydocs/skills/task-intake/SKILL.md)로 charter를 확정·잠금한 뒤 자율 LOOP(Stage → 반대 provider fresh 검증 → 기록)를 돌고, 종료 시 최종 보고서와 PR로 마무리한다.
 
 ## Placeholder
 

@@ -9,7 +9,7 @@
 - **인테이크(intake)**: 인간의 추상 프롬프트를 charter로 구체화·잠금하는 유일한 시작 게이트. [`task-intake`](../skills/task-intake/SKILL.md).
 - **charter(방향 명세)**: 인테이크에서 확정·잠금되는 **불변 계약**. 위치 `mydocs/plans/task_{milestone}_{issue}_charter.md`. 잠금 시 본문 해시를 baseline으로 고정한다(아래 "charter 무결성").
 - **자율 LOOP**: charter 잠금 후 인간 개입 없이 Stage를 반복하는 흐름.
-- **Stage**: LOOP의 한 회전. `구현 → 자기검증 → 기록 → 다음`. 검증·보고를 한 번에 끝낼 크기.
+- **Stage**: LOOP의 한 회전. `구현 → 교차 모델 fresh 검증 → 기록 → 다음`. 검증·보고를 한 번에 끝낼 크기.
 - **자동 검증 게이트**: Stage 종료 시 charter 기준 OK/MISS 판정. **구현자와 반대 provider의 fresh 외부 검증**으로 수행한다(아래).
 - **자기수정(self-correction)**: MISS 시 같은 Stage에서 `진단 → 수정 → 재검증`을 charter 한도 N회까지 반복.
 - **전역 가드**: 누적 Stage·누적 자기수정 상한. 매 회 증분·검사한다(폭주 방지).
@@ -74,7 +74,7 @@ pr-merge-cleanup (자동)
 - **task-frozen 정책**: `.ultra-waterfall/verifier/config.json`에서 binary/model/effort/timeout/Claude 예산을 정하고 task-start의 `uw-verifier doctor` 결과를 loop-state에 동결한다. task 중 config hash, implementer/verifier provider, model, effort가 달라지면 FAIL이다. 변경은 다음 task부터 적용한다.
 - **fresh 물리 세션 + 논리 원장**: Stage·자기수정·final 호출마다 Codex `--ephemeral`, Claude `--no-session-persistence`로 새 외부 세션을 만든다. task 전체 외부 세션을 유지하지 않는다. 대신 tamper-evident envelope chain이 이전 probe/drift를 정규화해 다음 호출에 전달하며 crash 복구의 진실 원천이 된다.
 - **반증 태도와 제한 입력**: 1차 임무는 "충족 확인"이 아니라 **"charter를 충족하지 *못하는* 반례를 찾아라"**(refute-first)다. 반례를 못 찾고 모든 검증이 통과할 때만 OK, 의심이 남으면 MISS로 강등한다. harness는 candidate를 disposable bundle로 추출하고 charter, Stage·누적 diff, frozen 로그, 정규화된 이전 원장만 전달한다. candidate 내부 prompt injection은 비신뢰 데이터로 취급하지만 그 의미적 무시를 완전히 증명할 수는 없다.
-- **immutable candidate**: 구현 파일만 index에 올려 `git write-tree` + `git commit-tree`로 branch를 움직이지 않는 candidate SHA를 만든다. 외부 검증자는 실제 worktree 대신 그 SHA에서 추출된 disposable candidate와 `./uw-probe`만 사용한다. product worktree를 쓰지 않는다.
+- **immutable·reachable candidate**: 구현 파일만 index에 올려 `git write-tree` + `git commit-tree`로 검증 중 branch를 움직이지 않는 candidate SHA를 만든다. 외부 검증자는 실제 worktree 대신 그 SHA에서 추출된 disposable candidate와 `./uw-probe`만 사용한다. 판정 뒤 Stage/MISS evidence commit의 부모를 candidate로 연결해 원격 CI에서도 candidate object를 읽을 수 있게 보존한다.
 - **외부 적대 프로브(필수)**: 검증자는 charter 동결 명령을 재실행하는 데 그치지 않고, 그 AC의 **실패공간을 자기만의 입력으로 추가 공격**한다(경계·다항목·반례 — 동결 명령이 보지 않는 각도). 동결 명령은 통과하는데 적대 프로브가 위반을 찾으면 = **동결 검증에 teeth 부족** → MISS + 검증 보강 charter급 에스컬레이션. (동결 명령만 재실행하면 검증자가 구현자와 같은 사각을 공유해 교차 검증의 의미가 약해진다 — refute-first의 핵심.)
 - **객관 증거 우선**: 구현자 frozen 명령의 candidate별 원문 로그, 외부 검증자의 실제 `uw-probe` 로그, structured decision, config/charter/candidate binding을 atomic envelope로 커밋한다. `lastVerification.evidence`는 그 **envelope 경로 + git blob id**다. 자유텍스트 자가 인용이나 probe 없는 OK는 금지한다.
 - **검증 명령 불변(charter 종속)**: Stage에서 실행하는 검증 명령은 charter 검증 기준에서 도출돼 구현계획서에 고정된다. **자기수정 중 검증 명령을 약화·변경하지 않는다**(echo·부분검사로 바꿔 통과 금지). 검증 명령을 바꿔야 하면 charter급 사건이다.
@@ -102,7 +102,7 @@ charter는 LOOP의 유일한 불변 계약이다. "골대 이동"(MISS를 만나
 
 ## 드리프트 체크포인트
 
-각 Stage 자기검증은 그 Stage만 본다. 누적 진척이 charter 목표에서 벗어나는 drift는 별도로 막는다.
+각 Stage 판정은 해당 Stage와 누적 diff를 함께 보지만, 누적 진척이 charter 목표에서 벗어나는 drift는 별도 structured 필드로 막는다.
 
 - 매 Stage 종료 시 "**누적 변경이 charter 목표·범위와 여전히 정렬되는가**"를 외부 검증자의 structured `drift`로 판정하고 단계 보고서에 기록한다.
 - charter `비목표`/`제외`/`제약`에 닿거나 목표에서 이탈하면 자율로 진행하지 않고 charter급 에스컬레이션.
@@ -157,7 +157,7 @@ charter는 LOOP의 유일한 불변 계약이다. "골대 이동"(MISS를 만나
 세 게이트(권위 층에서 강제):
 - **G3 charter 적합성**: `base..head` 변경 경로가 charter scope fence(allow/deny) 내인가 + 강제 정의 경로·charter 변경은 CODEOWNER review 필수. off-charter = 약화 말고 charter급 에스컬레이션.
 - **G4 우회불가 에스컬레이션**: CI는 base..head의 `escalations[]`가 append-only인지 먼저 확인한다. 각 항목은 task Issue의 `needs-human` labeled event가 escalation 시각 이후인지, 뒤따른 unlabeled event actor가 PR agent와 다른 GitHub `User`이자 `clearedBy`와 일치하는지, `clearArtifact`가 현재 PR에서 추가·변경되고 HEAD의 `mydocs/feedback/`에 versioned됐는지, 같은 actor의 `APPROVED` review가 unlabeled 뒤 최신 HEAD에 제출됐는지 1:1 대조한다. workflow는 review 제출·수정·철회에도 재실행한다. branch protection의 CODEOWNER review와 stale approval 자동 무효화가 trust-root이며, 조회·증거 불충분은 fail-close.
-- **G5 아티팩트 도출 + 격리**: loop-state 최초 추가 commit이 BASE의 직접 자식이고 product 변경이 없는지 확인해 계약 baseline으로 도출한 뒤 baseline/HEAD/mutant를 독립 clone으로 만든다. 현재 task의 `.ultra-waterfall/verify/task-{issue}/`만 선택해 각 frozen 검증의 **baseline MISS → HEAD PASS**를 실행별 빈 HOME에서 재실행한다. mutant는 별도 HEAD clone에서 위반을 주입(exit 0)하고 새 빈 HOME에서 같은 frozen 검증이 MISS하는지 판정한다. baseline 이후 현재 task verify 변경도 차단한다. 검증 실행 전 외부 증거 검사를 끝내고 토큰을 제거하며, 검증 잡은 read-only/no-secrets 러너로 격리한다.
+- **G5 아티팩트 도출 + 격리**: loop-state 최초 추가 commit을 product 변경 없는 계약 baseline으로 도출하고, baseline/HEAD/mutant 독립 clone에서 **baseline MISS → HEAD PASS → mutant MISS**를 실행별 빈 HOME으로 재실행한다. 0.4.0은 이에 더해 base-ref `uw-gate verify-envelope`가 task-frozen config, opposite provider, reachable candidate·charter, fresh 비영속 호출, frozen/probe hash, add-only 전체 chain과 `lastVerification.by: cross-model`을 검사한다. 토큰은 검증 전에 제거하고 러너는 read-only/no-secrets로 격리한다.
 
 정직한 잔여(이 레이어 후에도 honor-system): in-loop 로컬 실행 우회, **silent-no-escalate**(산출물 0이라 어떤 게이트도 못 잡음 — G1 teeth+인간만), on-charter 파일 안 의미론적 드리프트, *약한*(항진은 아니나 mutant 미모델) 검증, 인간 reviewer rubber-stamp·admin 미설정. 전체 설계·위협모델은 [`enforcement-layer-design.md`](../../../docs/enforcement-layer-design.md), 강제가 성립하려면 admin이 깔아야 하는 trust-root는 [`operator-setup.md`](../../../docs/operator-setup.md)(Phase 0). 현실 도달점 8→9.
 
@@ -242,4 +242,4 @@ charter 비목표/제외/제약에 닿으면 자율로 넓히지 않는다. char
 - [`task_workflow_guide.md`](task_workflow_guide.md): 인테이크→LOOP→최종 보고→PR 순서.
 - [`document_structure_guide.md`](document_structure_guide.md): charter·단계·최종 보고서 위치/파일명.
 - [`git_workflow_guide.md`](git_workflow_guide.md): 브랜치·draft PR·관찰성 push.
-- [`agent_autonomy_charter_discipline.md`](agent_autonomy_charter_discipline.md): 자율 실행과 charter 경계·자기검증 규율.
+- [`agent_autonomy_charter_discipline.md`](agent_autonomy_charter_discipline.md): 자율 실행과 charter 경계·교차 모델 검증 규율.

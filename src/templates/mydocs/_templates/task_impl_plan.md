@@ -124,7 +124,7 @@ Task #{issue} Stage 3: {핵심 내용 요약}
 ## 단계 의존성
 
 - Stage 2는 Stage 1의 산출물 확정 후 진행한다.
-- Stage 3은 Stage 2의 자기검증 OK 후 자동 진행한다.
+- Stage 3은 Stage 2의 교차 모델 검증 OK 후 자동 진행한다.
 
 ## 위험과 대응
 
@@ -133,4 +133,4 @@ Task #{issue} Stage 3: {핵심 내용 요약}
 ## 자율 진행 기준
 
 - Stage 분할, 산출물, 검증 명령, 커밋 메시지가 charter 수용·검증 기준을 만족하는지 확인한다.
-- 각 Stage는 자기검증 OK 시 다음 Stage로 자동 진행하고, 전 Stage 완료 시 charter 수용 기준 충족 여부로 종료를 판정한다.
+- 각 Stage는 교차 모델 검증 OK 시 다음 Stage로 자동 진행하고, 전 Stage 완료 시 charter 수용 기준 충족 여부로 종료를 판정한다.

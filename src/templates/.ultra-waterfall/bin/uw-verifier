@@ -179,7 +179,7 @@ def config_path(root: pathlib.Path, override: str | None) -> pathlib.Path:
 
 
 def clean_env() -> dict[str, str]:
-    allowed = {"HOME", "PATH", "TMPDIR", "LANG", "LC_ALL", "LC_CTYPE", "TERM"}
+    allowed = {"HOME", "PATH", "TMPDIR", "LANG", "LC_ALL", "LC_CTYPE", "TERM", "USER", "LOGNAME"}
     return {key: value for key, value in os.environ.items() if key in allowed}
 
 
@@ -401,10 +401,13 @@ def provider_argv(provider: str, status: dict[str, Any], config: dict[str, Any],
     }
     settings_path = bundle / "claude-settings.json"
     settings_path.write_bytes(json_bytes(settings))
-    schema_inline = json.dumps(load_json(bundle / "decision.schema.json"), separators=(",", ":"))
+    claude_schema = load_json(bundle / "decision.schema.json")
+    claude_schema.pop("$schema", None)
+    claude_schema.pop("$id", None)
+    schema_inline = json.dumps(claude_schema, separators=(",", ":"))
     argv = [
         binary, "--print", "--no-session-persistence", "--safe-mode", "--strict-mcp-config",
-        "--mcp-config", "{}", "--permission-mode", "dontAsk", "--tools", "Bash,Read,Glob,Grep",
+        "--mcp-config", '{"mcpServers":{}}', "--permission-mode", "dontAsk", "--tools", "Bash,Read,Glob,Grep",
         "--settings", str(settings_path), "--model", model, "--effort", effort,
         "--output-format", "json", "--json-schema", schema_inline,
     ]
@@ -555,7 +558,8 @@ def command_run(args: argparse.Namespace) -> int:
                 (bundle / "provider.stdout.log").write_text(result.stdout)
                 (bundle / "provider.stderr.log").write_text(result.stderr)
                 if result.returncode != 0:
-                    fail(f"{status['provider']} exited {result.returncode}: {result.stderr.strip()[-500:]}")
+                    diagnostic = "\n".join(part for part in (result.stderr.strip(), result.stdout.strip()) if part)
+                    fail(f"{status['provider']} exited {result.returncode}: {diagnostic[-1000:]}")
                 decision = parse_provider_decision(status["provider"], result, decision_path)
                 artifact_root = root / "mydocs/working" / f"{prefix}_{phase_name}_{candidate[:12]}_{run_id[:8]}.probes"
                 probes = collect_probes(root, bundle, decision, artifact_root)

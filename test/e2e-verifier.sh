@@ -421,7 +421,7 @@ cat >"$REPO/mydocs/plans/task_m000_2_charter.md" <<'EOF'
 # adapter task 2
 EOF
 cat >"$REPO/.ultra-waterfall/task-2.json" <<EOF
-{"schemaVersion":"0.4.0","issue":2,"milestone":"m000","charter":"mydocs/plans/task_m000_2_charter.md","verifier":{"mode":"opposite-provider","implementerProvider":"claude","provider":"codex","configPath":".ultra-waterfall/verifier/config.json","configHash":"sha256:$config_hash","model":"gpt-5.6","effort":"high","chainHead":null}}
+{"schemaVersion":"0.4.0","issue":2,"milestone":"m000","charter":"mydocs/plans/task_m000_2_charter.md","verifier":{"mode":"opposite-provider","implementerProvider":"claude","provider":"codex","configPath":".ultra-waterfall/verifier/config.json","configHash":"sha256:$config_hash","model":"gpt-5.6-sol","effort":"high","chainHead":null}}
 EOF
 git -C "$REPO" add mydocs/plans/task_m000_2_charter.md .ultra-waterfall/task-2.json
 git -C "$REPO" commit -qm 'task2 Codex adapter contract'
@@ -452,6 +452,7 @@ fi
 sed '$d' "$REPO/mydocs/working/task_m000_1_stage2_${candidate2_short}.log" >"$TMP/frozen.log"
 mv "$TMP/frozen.log" "$REPO/mydocs/working/task_m000_1_stage2_${candidate2_short}.log"
 if grep -q 'fake-claude --print --no-session-persistence --safe-mode' "$FAKE_BIN/calls.log" \
+  && grep -q -- '--mcp-config {"mcpServers":{}}' "$FAKE_BIN/calls.log" \
   && grep -q 'fake-codex exec --ephemeral --ignore-user-config' "$FAKE_BIN/calls.log"; then
   ok 'both adapters force fresh non-persistent invocation flags'
 else

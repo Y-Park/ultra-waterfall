@@ -15,7 +15,7 @@ state=""
 ls "$ROOT"/.ultra-waterfall/task-*.json >/dev/null 2>&1 && \
   state=$(ls -t "$ROOT"/.ultra-waterfall/task-*.json 2>/dev/null | head -1 | xargs -I{} sed -n 's/.*"state"[[:space:]]*:[[:space:]]*"\([^"]*\)".*/\1/p' {} | head -1)
 case "$state" in
-  implementing|verifying|correcting)
+  implementing|verifying|correcting|awaiting_merge)
     if ! "$GATE" charter-scope --staged; then
       echo "pre-commit: off-charter 변경(위 VIOLATION). --no-verify로 우회하지 말고 charter급 에스컬레이션하라." >&2
       echo "  (참고: 이 차단은 마찰이다. 우회해도 merge 시점 CI가 base..head를 재검사한다.)" >&2

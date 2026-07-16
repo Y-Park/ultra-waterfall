@@ -3,7 +3,7 @@ name: task-final-report
 description: |
   울트라-워터폴 타스크의 최종 보고와 PR 게시 절차를 적용한다.
   독립 통합검증(charter 전 AC), 최종 보고서 작성, 오늘할일 완료,
-  draft PR을 ready로 전환, loop-state done 기록을 수행한다.
+  draft PR을 ready로 전환, loop-state awaiting_merge 기록을 수행한다.
   LOOP 종료(charter 전 수용기준 OK) 후 PR 직전에만 호출.
 ---
 
@@ -33,7 +33,7 @@ description: |
    - **MISS인 채 PR 생성·ready 전환 금지.**
 3. **최종 보고서 작성**: `mydocs/report/task_{milestone}_{N}_report.md` (`mydocs/_templates/final_report.md` 기준). 작업 요약(이슈·charter 링크·Stage 수)/변경 파일·영향/문서 위치 검증/정량 비교/AC별 OK/MISS+근거/단계별 검증 링크/잔여 위험·후속.
 4. **오늘할일 갱신**: `mydocs/orders/{yyyymmdd}.md` #{N} 행 → `완료` + `완료: HH:mm`.
-5. **loop-state 종료 기록**: `.ultra-waterfall/task-{N}.json` → `state: done`, `exit={code: completed, reason: "전 AC OK"}`, `updatedAt`.
+5. **loop-state PR 대기 기록**: `.ultra-waterfall/task-{N}.json` → `state: awaiting_merge`, `exit={code: awaiting_merge, reason: "전 AC OK, 인간 merge 대기", needsHuman:true}`, `updatedAt`. `done`은 아직 기록하지 않는다.
 6. 변경 점검 + 최종 커밋
    ```bash
    git status --short && git diff --check && git log --oneline {BASE_BRANCH}..local/task{N}
@@ -49,6 +49,7 @@ description: |
    gh pr ready {PR번호}
    ```
    - draft PR이 없던 경우에만 `gh pr create --base {BASE_BRANCH} --head publish/task{N} --title ... --body-file "$PR_BODY"`.
+   - push/PR edit/create/ready가 중간 실패해도 `awaiting_merge` commit은 보존한다. 다음 bootstrap은 PR 없음·draft 상태를 감지해 이 7번만 재실행한다. closed-unmerged는 자동 재생성하지 않고 에스컬레이션한다.
    - PR 본문 규칙: 요약 최대 4 bullet(대상/왜/무엇/리뷰 포인트), Stage당 1줄(단계 보고서 URL + 짧은 commit SHA URL), 작업 문서(charter·구현계획서·보고서) `HEAD_SHA` 고정 blob URL `[파일명](URL)`(raw·상대·`blob/publish/task{N}` 금지).
    - 검증 섹션은 `자동 검증`/`수동·시나리오`/`CI·원격`/`검증 한계` 표 구조. 미수행은 `검증 한계`/`남은 리스크`로. 긴 로그는 보고서 링크로.
 8. **인간에게 PR URL 전달 + 검토·merge 요청.** (이 한 군데가 인간 게이트. merge는 인간이 결정.)
@@ -58,7 +59,8 @@ description: |
 - 모든 단계 보고서 + 최종 보고서 존재, 템플릿 필수 섹션 충족
 - charter 전 AC가 **독립 검증으로** OK (MISS 0건), 모든 목표가 OK인 AC로 덮임
 - charter 해시 == baseline
-- `.ultra-waterfall/task-{N}.json`: `state: done`, `exit.code: completed`
+- `.ultra-waterfall/task-{N}.json`: `state: awaiting_merge`, `exit.code: awaiting_merge`이며 PR의 권위 charter가 계속 해소됨
+- `state: done`은 PR 준비 단계 어디에도 기록되지 않음(merge 전 자기인증 금지)
 - `git status --short` 빈 출력
 - PR이 ready(draft 아님), 정확한 base/head, 본문 규칙 충족(검증 4표, SHA 고정 작업문서 링크, raw/상대 링크 없음)
 - 오늘할일 #{N} `완료` + `완료: HH:mm`

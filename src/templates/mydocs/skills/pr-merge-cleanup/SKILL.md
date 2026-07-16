@@ -23,10 +23,11 @@ description: |
 
 1. PR과 이슈 상태 확인
    ```bash
-   gh pr view {번호} --json state,mergedAt,mergeCommit,headRefName
+   gh pr view {번호} --json state,mergedAt,mergeCommit,headRefName > /tmp/uw-pr-{번호}.json
+   .ultra-waterfall/bin/uw-gate merge-fact /tmp/uw-pr-{번호}.json
    gh issue view {N} --json state
    ```
-   - PR `state == MERGED` 아니면 즉시 중단하고 보고
+   - `merge-fact`가 비-0이면(`MERGED` 아님 또는 `mergeCommit` null/누락) 즉시 중단하고 보고
 2. 이슈 close (PR merged 확인 후 자동 close, 이미 `closes #N`으로 자동 close된 경우는 skip)
    ```bash
    gh issue close {N}
@@ -52,7 +53,7 @@ description: |
    # 강제 삭제 git branch -D local/task{N} 는 무단 사용 금지
    ```
 7. 오늘할일 최종 정리: `mydocs/orders/{yyyymmdd}.md`의 #{N} 행이 `완료` + 시각 기록되어 있는지 재확인
-8. LOOP 상태 종결: `.ultra-waterfall/task-{N}.json`의 해당 task 항목을 `done`/정리 완료로 갱신하고 정리 시각을 기록
+8. LOOP 상태 종결 판정: GitHub PR의 `state == MERGED`와 `mergeCommit`을 외부 완료 사실로 삼아 effective `done`을 도출한다. PR head에 커밋된 loop-state는 `awaiting_merge` 이력으로 유지하며, merge 뒤 `done`을 만들기 위한 자기인증 commit이나 base 직접 push를 추가하지 않는다.
 9. 결과 보고: 정리된 항목 목록을 짧게 회신
 
 ## 검증
@@ -62,6 +63,7 @@ description: |
 - `git ls-remote origin publish/task{N}` 빈 출력 (원격 삭제 확인)
 - `git worktree list` 출력에 정리 대상 worktree 미존재
 - `git branch --show-current`가 `{BASE_BRANCH}`
+- effective `done` 근거가 `gh pr view`의 `MERGED` + `mergeCommit`이고, merge 전 loop-state 자기보고가 아님
 
 ## 절대 하지 말 것
 

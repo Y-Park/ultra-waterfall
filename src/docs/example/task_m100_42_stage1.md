@@ -42,7 +42,7 @@ AC별 판정:
 ### red-first / teeth 재확인
 
 - **red-first**: 수정 전 baseline에서 `verify/ac1.sh` → `MISS: complete(-1) no raise` exit 1 (검증이 미작업을 실제로 잡음).
-- **teeth**: `verify/ac1.mutant.sh`(upper-bound만 검사하는 약화 가드 주입) → exit 1. 음수 래핑을 통과시키는 약한 수정도 검증이 잡아냄을 입증.
+- **teeth**: 별도 checkout에서 `verify/ac1.mutant.sh`가 upper-bound만 검사하는 약화 가드를 주입(exit 0)한 뒤 `verify/ac1.sh` → exit 1. 음수 래핑을 통과시키는 약한 수정도 frozen 검증이 잡아냄을 입증.
 
 ### 독립 적대 프로브 (동결 명령 외 추가 공격)
 

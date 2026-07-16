@@ -24,6 +24,8 @@ Stage: {stage}
 
 이 Stage가 담당하는 AC에 대한 OK/MISS 판정. 판정은 구현자와 분리된 **독립 검증**으로, "충족하지 *못하는* 반례를 찾아라" 태도(refute-first)로 한다. 검증자는 **깨끗한 체크아웃에서 직접** charter 고정 명령을 재실행(약화 금지)하고, 거기 더해 **자기 적대 프로브**로 실패공간을 추가 공격한다.
 
+검증 candidate commit: `{git write-tree + git commit-tree로 만든 SHA}`. 검증자는 이 SHA의 detached worktree를 사용하고, 단계 보고서·로그에 SHA를 함께 남긴다.
+
 실행 명령(charter 검증 기준과 동일):
 
 ```bash
@@ -35,7 +37,7 @@ git diff --check
 
 AC별 판정:
 
-| AC | 결과 | 근거(로그 경로#해시 / 핵심 출력) | 독립 검증자 |
+| AC | 결과 | 근거(candidate SHA + 로그 경로#해시 / 핵심 출력) | 독립 검증자 |
 |---|---|---|---|
 | AC{n} | OK/MISS | `...stage{stage}.log#{sha}` | subagent / fresh-eyes |
 

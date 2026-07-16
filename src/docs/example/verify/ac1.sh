@@ -1,6 +1,6 @@
 #!/bin/sh
 # AC1 frozen 검증: complete(음수/범위밖)은 IndexError + 상태 불변. 통과=exit0.
-# (실제 task에선 .ultra-waterfall/verify/ac1.sh로 emit되어 merge 시점 CI가 재실행한다.)
+# (실제 task에선 .ultra-waterfall/verify/task-42/ac1.sh로 emit되어 merge 시점 CI가 재실행한다.)
 set -eu
 here=$(CDPATH= cd "$(dirname "$0")" && pwd)
 PYTHONPATH="$here/../src" python3 - <<'EOF'

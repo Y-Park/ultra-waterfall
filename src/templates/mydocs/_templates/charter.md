@@ -87,9 +87,9 @@ deny  {산출 경계 안의 명시 제외, 예: src/legacy/**}
 - **관찰형 예외**: 불가피하게 관찰이 필요한 AC는 (a) 인테이크 blocking으로 인간이 확정했거나 (b) 스크린샷/로그 첨부를 증거로 의무화한다. 관찰형은 독립 신호가 아니므로 단독으로 OK 근거가 되지 못한다.
 - **red-first**: 각 검증이 미작업 상태에서 실제로 MISS/실패함을 잠금 전에 확인한다(항진적·무의미 검증이 게이트를 무력화하는 것을 방지).
 - **teeth(변별력) 필수**: 기계검증 *가능*만으로는 부족하다. 각 must-fix AC의 검증은 그 AC가 막으려는 **타당한 위반(mutant)을 주입하면 MISS**가 나야 한다. 검증이 mutant를 통과시키면(픽스처·단언이 너무 약함 — 예: 경계 한 케이스만 보는 fixture) mutant를 **잡을 때까지 검증을 보강**한다. **teeth 미입증 AC로는 charter를 잠그지 않는다**(red-first만으로는 "막으려는 그 결함"을 실제로 잡는지 보장하지 못한다).
-- **CI 실행형 emit (G5 강제용)**: 각 must-fix AC의 frozen 검증 명령(과 teeth mutant)을 사람이 읽는 표에만 두지 말고 `.ultra-waterfall/verify/<ac>.sh`(통과=exit0)와 `.ultra-waterfall/verify/<ac>.mutant.sh`(mutant 주입 시 MISS=비-0)로도 emit한다. merge 시점 CI가 이를 clean-room에서 직접 재실행해 done을 자기보고가 아니라 아티팩트에서 도출한다(`enforcement-layer-design.md` §3 G5). 표↔스크립트가 일치해야 한다.
+- **CI 실행형 emit (G5 강제용)**: 각 must-fix AC의 frozen 검증 명령과 teeth mutant를 사람이 읽는 표에만 두지 말고 현재 task namespace `.ultra-waterfall/verify/task-{issue}/<ac>.sh`와 `<ac>.mutant.sh`로도 emit한다(채번 전에는 `pending-{slug}/`, 등록 시 rename). mutant는 위반을 주입하고 exit 0, frozen 검증은 그 위반에서 MISS해야 한다. merge 시점 CI가 이를 clean checkout에서 직접 재실행해 완료를 자기보고가 아니라 아티팩트에서 도출한다(`enforcement-layer-design.md` §3 G5). 표↔현재 task namespace 스크립트가 일치해야 한다.
 
-CI 강제 AC 선언(기계 판독, G5 parity용): merge 시점 CI가 이 목록 ↔ `.ultra-waterfall/verify/*.sh` 집합이 **정확히 1:1**인지 검사한다(선언했는데 스크립트 없음=gap, 스크립트인데 미선언=orphan → 둘 다 FAIL). 토큰은 verify 스크립트 파일명과 동일하게(공백/줄바꿈 구분, 예: `ac5`). 표의 must-fix AC와 일치시킨다.
+CI 강제 AC 선언(기계 판독, G5 parity용): merge 시점 CI가 이 목록 ↔ 현재 task namespace `.ultra-waterfall/verify/task-{issue}/*.sh` 집합이 **정확히 1:1**인지 검사한다(선언했는데 스크립트 없음=gap, 스크립트인데 미선언=orphan → 둘 다 FAIL). 토큰은 verify 스크립트 파일명과 동일하게(공백/줄바꿈 구분, 예: `ac5`). 표의 must-fix AC와 일치시킨다.
 
 <!-- uw:verify-acs:begin -->
 {ci 강제 AC 토큰들, 예: ac1 ac5}

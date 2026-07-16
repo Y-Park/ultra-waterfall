@@ -105,9 +105,11 @@ description: |
      --json number,title,state,milestone,labels,url
    ```
 10. charter 파일명 확정 + loop-state 생성 + 인계
-    - 인테이크가 만든 잠정 charter(`task_{milestone}_{slug}_charter.md`)를 `git mv`로 `task_{milestone}_{N}_charter.md`로 rename한다. charter 본문 해시는 rename으로 바뀌지 않으므로 baseline 유지(필요 시 재계산해 동일 확인).
+    - 인테이크가 만든 잠정 charter(`task_{milestone}_{slug}_charter.md`)는 아직 untracked이므로 `mv`로 `task_{milestone}_{N}_charter.md`에 rename한다(`git mv` 금지). charter 본문 해시는 rename으로 바뀌지 않으므로 baseline 유지(필요 시 재계산해 동일 확인).
+    - 인테이크의 untracked `.ultra-waterfall/verify/pending-{slug}/`도 `mv`로 `.ultra-waterfall/verify/task-{N}/`에 rename한다. 다른 task namespace는 건드리지 않는다.
     - `.ultra-waterfall/task-{N}.json`을 생성한다(스키마는 `ultra_loop_guide.md`): `issue`=N, `milestone`, `charter`=새 경로, `charterHash`=charter baseline, `guards`(charter 값), `state: planning`, `exit.code: running`, `updatedAt`. 누적 카운터(`totalStages`/`selfCorrectionTotal`/`currentStageCorrections`)는 0.
     - 이슈 본문에 charter 역링크(새 경로)를 반영한다(charter↔Issue 일관성; charter가 단일 진실 원천, Issue는 파생물).
+    - rename된 charter·`.ultra-waterfall/verify/task-{N}/`·새 loop-state는 **expected intake artifacts**로 미커밋 유지한다. `task-start`가 구현계획서·오늘할일과 함께 계약 baseline으로 커밋하며, 이 사이 다른 변경을 섞지 않는다.
     - 생성된 이슈 번호·URL을 보고하고 [`task-start`](../task-start/SKILL.md)로 자동 진행한다.
 
 ## 검증
@@ -121,6 +123,7 @@ description: |
 - 이슈 본문이 charter의 배경, 목표, 비목표, 범위(포함/제외), 제약, 가정, 리스크, 수용 기준, 검증 기준을 채우고 charter를 역링크해야 한다.
 - 생성 결과 보고에 issue number, URL, milestone, label, 선택 이유가 포함되어야 한다.
 - charter가 `task_{milestone}_{N}_charter.md`로 rename되고 잠정명이 남아 있지 않다.
+- verify namespace가 `.ultra-waterfall/verify/pending-{slug}/`에서 `.ultra-waterfall/verify/task-{N}/`으로 확정되고 pending namespace가 남아 있지 않다.
 - `.ultra-waterfall/task-{N}.json`이 생성되고 `issue`/`charter`/`charterHash`/`guards`/`state: planning`/`exit.code: running`이 채워졌다.
 
 ## 절대 하지 말 것

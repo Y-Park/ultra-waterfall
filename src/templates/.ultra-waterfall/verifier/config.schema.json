@@ -1,0 +1,65 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://github.com/Y-Park/ultra-waterfall/schemas/verifier-config-0.1.0.json",
+  "title": "Ultra-Waterfall cross-model verifier configuration",
+  "type": "object",
+  "additionalProperties": false,
+  "required": ["schemaVersion", "mode", "providers", "timeoutSeconds"],
+  "properties": {
+    "$schema": { "type": "string" },
+    "schemaVersion": { "const": "0.1.0" },
+    "mode": { "const": "opposite-provider" },
+    "providers": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["codex", "claude"],
+      "properties": {
+        "codex": { "$ref": "#/$defs/codex" },
+        "claude": { "$ref": "#/$defs/claude" }
+      }
+    },
+    "timeoutSeconds": { "type": "integer", "minimum": 30, "maximum": 7200 }
+  },
+  "$defs": {
+    "baseProvider": {
+      "type": "object",
+      "required": ["binary", "model", "effort"],
+      "properties": {
+        "binary": { "type": "string", "minLength": 1, "pattern": "^\\S+$" },
+        "model": { "type": "string", "minLength": 1 },
+        "effort": { "type": "string" }
+      }
+    },
+    "codex": {
+      "allOf": [
+        { "$ref": "#/$defs/baseProvider" },
+        {
+          "type": "object",
+          "additionalProperties": false,
+          "properties": {
+            "binary": { "type": "string", "minLength": 1, "pattern": "^\\S+$" },
+            "model": { "type": "string", "minLength": 1 },
+            "effort": {
+              "enum": ["none", "minimal", "low", "medium", "high", "xhigh", "max", "ultra"]
+            }
+          }
+        }
+      ]
+    },
+    "claude": {
+      "allOf": [
+        { "$ref": "#/$defs/baseProvider" },
+        {
+          "type": "object",
+          "additionalProperties": false,
+          "properties": {
+            "binary": { "type": "string", "minLength": 1, "pattern": "^\\S+$" },
+            "model": { "type": "string", "minLength": 1 },
+            "effort": { "enum": ["low", "medium", "high", "xhigh", "max"] },
+            "maxBudgetUsd": { "type": ["number", "null"], "exclusiveMinimum": 0 }
+          }
+        }
+      ]
+    }
+  }
+}

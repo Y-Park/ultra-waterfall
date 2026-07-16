@@ -1,0 +1,40 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://github.com/Y-Park/ultra-waterfall/schemas/verifier-decision-0.1.0.json",
+  "title": "External verifier model decision",
+  "type": "object",
+  "additionalProperties": false,
+  "required": ["verdict", "drift", "summary", "findings", "probes"],
+  "properties": {
+    "verdict": { "enum": ["OK", "MISS"] },
+    "drift": { "enum": ["OK", "MISS"] },
+    "summary": { "type": "string", "minLength": 1 },
+    "findings": {
+      "type": "array",
+      "items": {
+        "type": "object",
+        "additionalProperties": false,
+        "required": ["severity", "title", "evidence"],
+        "properties": {
+          "severity": { "enum": ["critical", "high", "medium", "low"] },
+          "title": { "type": "string", "minLength": 1 },
+          "evidence": { "type": "string", "minLength": 1 }
+        }
+      }
+    },
+    "probes": {
+      "type": "array",
+      "minItems": 1,
+      "items": {
+        "type": "object",
+        "additionalProperties": false,
+        "required": ["id", "purpose", "result"],
+        "properties": {
+          "id": { "type": "string", "pattern": "^[A-Za-z][A-Za-z0-9_-]*$" },
+          "purpose": { "type": "string", "minLength": 1 },
+          "result": { "enum": ["no-violation", "violation", "inconclusive"] }
+        }
+      }
+    }
+  }
+}

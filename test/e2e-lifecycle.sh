@@ -41,8 +41,8 @@ assert_has "$SKILLS/task-stage-report/SKILL.md" 'git write-tree' \
   'AC2 candidate tree is materialized from the index'
 assert_has "$SKILLS/task-stage-report/SKILL.md" 'git commit-tree' \
   'AC2 candidate commit is created without moving the task branch'
-assert_has "$SKILLS/task-stage-report/SKILL.md" 'git worktree add.*candidate|git worktree add.*CANDIDATE' \
-  'AC2 verifier checks out the exact candidate commit'
+assert_has "$SKILLS/task-stage-report/SKILL.md" 'disposable bundle|disposable candidate' \
+  'AC2 verifier receives the exact candidate through a disposable bundle'
 assert_has "$SKILLS/task-stage-report/SKILL.md" 'git diff --cached --quiet.*CANDIDATE_COMMIT' \
   'AC2 final index preserves candidate implementation blobs'
 assert_has "$SKILLS/task-stage-report/SKILL.md" "\:\(exclude\).*task-\{N\}\.json" \
@@ -86,6 +86,22 @@ assert_has "$SKILLS/pr-merge-cleanup/SKILL.md" 'MERGED.*done|done.*MERGED|merged
   'AC3 cleanup derives done from the merged PR fact'
 assert_has "$SKILLS/../manual/ultra_loop_guide.md" 'completed.*done|done.*completed' \
   'AC3 bootstrap recognizes legacy done/completed as historical completion'
+
+# AC4: new tasks freeze an opposite-provider verifier and only cross-model evidence can advance them.
+assert_has "$SKILLS/task-register/SKILL.md" 'schemaVersion: 0\.4\.0' \
+  'AC4 task registration initializes loop-state 0.4.0'
+assert_has "$SKILLS/task-start/SKILL.md" 'uw-verifier doctor --implementer \{codex\|claude\}' \
+  'AC4 task-start diagnoses and freezes the implementer/opposite-provider tuple'
+assert_has "$SKILLS/task-start/SKILL.md" 'configHash.*chainHead: null|chainHead: null.*configHash' \
+  'AC4 task-start freezes config evidence with an empty chain head'
+assert_has "$SKILLS/task-stage-report/SKILL.md" 'uw-verifier run --task \{N\} --phase stage --stage \{S\}' \
+  'AC4 every Stage invokes the fresh cross-model verifier'
+assert_has "$SKILLS/task-stage-report/SKILL.md" 'lastVerification\.by.*cross-model|by: cross-model' \
+  'AC4 Stage state accepts only cross-model verification evidence'
+assert_has "$SKILLS/task-final-report/SKILL.md" 'uw-verifier run --task \{N\} --phase final' \
+  'AC4 final verification uses a separate fresh invocation'
+assert_has "$SKILLS/task-final-report/SKILL.md" 'same provider fallback|같은 provider fallback' \
+  'AC4 final verification forbids same-provider fallback'
 
 # Dynamic lifecycle fixture: old task -> intake/start baseline -> candidate -> final -> PR/CI -> merged fact.
 R2=$(mktemp -d)

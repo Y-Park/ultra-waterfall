@@ -511,6 +511,9 @@ def command_run(args: argparse.Namespace) -> int:
     status = provider_status(config, implementer)
     if verifier["mode"] != "opposite-provider" or verifier["provider"] != OPPOSITE.get(implementer):
         fail("loop-state verifier provider is not opposite to the implementer")
+    expected_path = relative_or_absolute(root, path)
+    if verifier["configPath"] != expected_path:
+        fail("loop-state verifier config path does not match the selected config")
     expected_hash = f"sha256:{sha256_file(path)}"
     if verifier["configHash"] != expected_hash:
         fail("verifier config drifted after task start")
@@ -528,12 +531,13 @@ def command_run(args: argparse.Namespace) -> int:
         fail("loop-state milestone must use m<digits>")
     prefix = f"task_{milestone}_{args.task}"
     if args.phase == "stage":
-        frozen_log = root / "mydocs/working" / f"{prefix}_stage{args.stage}.log"
+        frozen_log = root / "mydocs/working" / f"{prefix}_stage{args.stage}_{candidate[:12]}.log"
         phase_name = f"stage{args.stage}"
     else:
-        frozen_log = root / "mydocs/working" / f"{prefix}_final.log"
+        frozen_log = root / "mydocs/working" / f"{prefix}_final_{candidate[:12]}.log"
         phase_name = "final"
-    if not frozen_log.is_file() or not re.search(r"^exit: 0$", frozen_log.read_text(errors="replace"), re.MULTILINE):
+    frozen_exits = re.findall(r"^exit: ([0-9]+)$", frozen_log.read_text(errors="replace"), re.MULTILINE) if frozen_log.is_file() else []
+    if not frozen_exits or any(code != "0" for code in frozen_exits):
         fail(f"frozen verification log missing or nonzero: {relative_or_absolute(root, frozen_log)}")
     previous, ledger = load_chain(root, verifier["chainHead"])
     timeout = config["timeoutSeconds"]

@@ -177,7 +177,8 @@ printf 'candidate change\n' >>"$REPO/README.md"
 git -C "$REPO" add README.md
 git -C "$REPO" commit -qm 'candidate one'
 candidate1=$(git -C "$REPO" rev-parse HEAD)
-cat >"$REPO/mydocs/working/task_m000_1_stage1.log" <<'EOF'
+candidate1_short=$(printf '%.12s' "$candidate1")
+cat >"$REPO/mydocs/working/task_m000_1_stage1_${candidate1_short}.log" <<'EOF'
 ## uw-verify-envelope ac=ac1
 argv: fixture
 exit: 0
@@ -228,7 +229,8 @@ printf 'second candidate\n' >>"$REPO/README.md"
 git -C "$REPO" add README.md
 git -C "$REPO" commit -qm 'candidate two'
 candidate2=$(git -C "$REPO" rev-parse HEAD)
-cat >"$REPO/mydocs/working/task_m000_1_stage2.log" <<'EOF'
+candidate2_short=$(printf '%.12s' "$candidate2")
+cat >"$REPO/mydocs/working/task_m000_1_stage2_${candidate2_short}.log" <<'EOF'
 ## uw-verify-envelope ac=ac2
 argv: fixture
 exit: 0
@@ -239,6 +241,14 @@ else
   cat "$TMP/run2.err" >&2
   bad 'Codex adapter run'
 fi
+printf 'exit: 7\n' >>"$REPO/mydocs/working/task_m000_1_stage2_${candidate2_short}.log"
+if (cd "$REPO" && .ultra-waterfall/bin/uw-verifier run --task 1 --phase stage --stage 2 --candidate "$candidate2") >"$TMP/mixed.out" 2>"$TMP/mixed.err"; then
+  bad 'mixed frozen verification exits are rejected'
+else
+  grep -q 'nonzero' "$TMP/mixed.err" && ok 'any nonzero frozen verification result fails closed' || bad 'mixed frozen log diagnostic'
+fi
+sed '$d' "$REPO/mydocs/working/task_m000_1_stage2_${candidate2_short}.log" >"$TMP/frozen.log"
+mv "$TMP/frozen.log" "$REPO/mydocs/working/task_m000_1_stage2_${candidate2_short}.log"
 if grep -q 'fake-claude --print --no-session-persistence --safe-mode' "$FAKE_BIN/calls.log" \
   && grep -q 'fake-codex exec --ephemeral --ignore-user-config' "$FAKE_BIN/calls.log"; then
   ok 'both adapters force fresh non-persistent invocation flags'
@@ -257,6 +267,19 @@ if (cd "$REPO" && .ultra-waterfall/bin/uw-verifier run --task 1 --phase stage --
   bad 'same-provider state is rejected'
 else
   grep -q 'not opposite' "$TMP/same.err" && ok 'same-provider state fails closed' || bad 'same-provider diagnostic'
+fi
+cp "$TMP/state.good" "$REPO/.ultra-waterfall/task-1.json"
+
+python3 - "$REPO/.ultra-waterfall/task-1.json" <<'PY'
+import json, pathlib, sys
+p = pathlib.Path(sys.argv[1]); value = json.loads(p.read_text())
+value["verifier"]["configPath"] = ".ultra-waterfall/verifier/other.json"
+p.write_text(json.dumps(value) + "\n")
+PY
+if (cd "$REPO" && .ultra-waterfall/bin/uw-verifier run --task 1 --phase stage --stage 2 --candidate "$candidate2") >"$TMP/path.out" 2>"$TMP/path.err"; then
+  bad 'task-frozen config path mismatch is rejected'
+else
+  grep -q 'config path does not match' "$TMP/path.err" && ok 'task-frozen config path fails closed' || bad 'config path diagnostic'
 fi
 cp "$TMP/state.good" "$REPO/.ultra-waterfall/task-1.json"
 
